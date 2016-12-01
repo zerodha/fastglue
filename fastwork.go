@@ -20,9 +20,12 @@ const (
 	XML  = "xml"
 )
 
-type FastContext struct {
-	*fasthttp.RequestCtx
-	Body interface{}
+type Test *fasthttp.RequestCtx
+
+type FastRequestHandler func(*Context)
+
+type Context struct {
+	RequestCtx *fasthttp.RequestCtx
 }
 
 type Fastwork struct {
@@ -33,6 +36,50 @@ func New() *Fastwork {
 	return &Fastwork{
 		Router: fasthttprouter.New(),
 	}
+}
+
+func (c *Context) Decode(v interface{}) {
+	var (
+		err error
+		ct  = c.RequestCtx.Request.Header.ContentType()
+	)
+
+	if bytes.Contains(ct, constJSON) {
+		err = json.Unmarshal(c.RequestCtx.PostBody(), &v)
+	} else if bytes.Contains(ct, constXML) {
+		err = xml.Unmarshal(c.RequestCtx.PostBody(), &v)
+	} else {
+		c.respond(fasthttp.StatusBadRequest, "error", "Unknown encoding "+string(ct), nil)
+		return
+	}
+
+	if err != nil {
+		c.respond(fasthttp.StatusBadRequest, "error", "Error decoding request body", nil)
+		return
+	}
+}
+
+func (c *Context) respond(code int, status string, message string, v interface{}) {
+	c.RequestCtx.SetStatusCode(code)
+
+	if j, err := json.Marshal(struct {
+		Status  string      `json:"status"`
+		Message string      `json:"message"`
+		Data    interface{} `json:"data"`
+	}{status, message, v}); err == nil {
+		_, err = c.RequestCtx.Write(j)
+	} else {
+		c.respond(fasthttp.StatusInternalServerError, "errpr", "Could not encode respone", nil)
+		return
+	}
+}
+
+func (c *Context) Respond(v interface{}) {
+	c.respond(fasthttp.StatusOK, "success", "", v)
+}
+
+func (c *Context) RespondError(code int, message string, v interface{}) {
+	c.respond(code, "error", message, v)
 }
 
 func HasFields(h fasthttp.RequestHandler, fields []string) fasthttp.RequestHandler {
@@ -77,53 +124,25 @@ func AsJSON(h fasthttp.RequestHandler, obj interface{}) fasthttp.RequestHandler 
 	}
 }
 
-func (f *Fastwork) handler(h fasthttp.RequestHandler) func(*fasthttp.RequestCtx) {
+func (f *Fastwork) handler(h FastRequestHandler) func(*fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		h(ctx)
+		c := &Context{
+			RequestCtx: ctx,
+		}
+		ctx.SetUserValue("Fast", c)
+
+		h(c)
 	}
 }
 
-func (f *Fastwork) GET(path string, h fasthttp.RequestHandler) {
-	f.Router.GET(path, f.handler(h))
-}
-func (f *Fastwork) POST(path string, h fasthttp.RequestHandler) {
+func (f *Fastwork) POST(path string, h FastRequestHandler) {
 	f.Router.POST(path, f.handler(h))
+}
+
+func (f *Fastwork) GET(path string, h FastRequestHandler) {
+	f.Router.GET(path, f.handler(h))
 }
 
 func (f *Fastwork) Handler() func(*fasthttp.RequestCtx) {
 	return f.Router.Handler
-}
-
-func Decode(ctx *fasthttp.RequestCtx, v interface{}) {
-	var (
-		err error
-		c   = ctx.Request.Header.ContentType()
-	)
-
-	if bytes.Contains(c, constJSON) {
-		err = json.Unmarshal(ctx.PostBody(), &v)
-	} else if bytes.Contains(c, constXML) {
-		err = xml.Unmarshal(ctx.PostBody(), &v)
-	} else {
-		ctx.WriteString("Unknown encoding " + string(c))
-	}
-
-	if err != nil {
-		ctx.WriteString("Error decoding request body")
-	}
-}
-
-func Respond(ctx *fasthttp.RequestCtx, v interface{}) error {
-	var err error
-	if j, err := json.Marshal(v); err == nil {
-		_, err = ctx.Write(j)
-	} else {
-
-	}
-
-	return err
-}
-
-func RespondError(ctx, v) {
-
 }
