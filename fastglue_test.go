@@ -48,7 +48,7 @@ func init() {
 	srv.POST("/post", myPOSThandler)
 	srv.PUT("/put", myPOSThandler)
 	srv.POST("/post_json", myPOSTJsonhandler)
-	// srv.GET("/get", RequireParams(myGEThandler, []string{"name"}))
+	srv.GET("/required", RequireParams(myGEThandler, []string{"name"}))
 
 	log.Println("Listening on", srvAddress)
 
@@ -111,7 +111,7 @@ func decodeEnevelope(resp *http.Response, t *testing.T) (Envelope, string) {
 
 func getParamMiddleware(r *Request) *Request {
 	if string(r.RequestCtx.FormValue("param")) != "123" {
-		r.SendErrorEnvelope(fasthttp.StatusBadRequest, "You haven't sent the param with the value '123'", nil, "InputException")
+		r.SendErrorEnvelope(fasthttp.StatusBadRequest, "You haven't sent `param` with the value '123'", nil, "InputException")
 
 		return nil
 	}
@@ -239,6 +239,40 @@ func TestDeleteRequest(t *testing.T) {
 	}
 
 	out := "map[out:name=test]"
+	if fmt.Sprintf("%v", e.Data) != out {
+		t.Fatalf("Expected `data` field %s != %v", out, e.Data)
+	}
+}
+
+func TestRequiredParams(t *testing.T) {
+	// Skip the required params.
+	resp := GETrequest(srvRoot+"/required?param=123", t)
+
+	if resp.StatusCode != fasthttp.StatusBadRequest {
+		t.Fatalf("Expected status %d != %d", fasthttp.StatusBadRequest, resp.StatusCode)
+	}
+
+	e, _ := decodeEnevelope(resp, t)
+	if e.Status != "error" {
+		t.Fatalf("Expected `status` field error != %s", e.Status)
+	}
+
+	if e.ErrorType == nil || *e.ErrorType != "InputException" {
+		t.Fatalf("Expected `error_type` field InputException != %s", *e.ErrorType)
+	}
+
+	// Pass a value.
+	resp = GETrequest(srvRoot+"/required?param=123&name=testxxx", t)
+	if resp.StatusCode != fasthttp.StatusOK {
+		t.Fatalf("Expected status %d != %d", fasthttp.StatusOK, resp.StatusCode)
+	}
+
+	e, _ = decodeEnevelope(resp, t)
+	if e.Status != "success" {
+		t.Fatalf("Expected `status` field success != %s", e.Status)
+	}
+
+	out := "map[out:name=testxxx]"
 	if fmt.Sprintf("%v", e.Data) != out {
 		t.Fatalf("Expected `data` field %s != %v", out, e.Data)
 	}
