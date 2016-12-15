@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/valyala/fasthttp"
 )
@@ -55,6 +56,8 @@ func init() {
 	go (func() {
 		log.Fatal(fasthttp.ListenAndServe(srvAddress, srv.Handler()))
 	})()
+
+	time.Sleep(time.Second * 2)
 }
 
 func GETrequest(url string, t *testing.T) *http.Response {
