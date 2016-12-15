@@ -3,7 +3,7 @@ package main
 import (
 	"log"
 
-	"github.com/knadh/fastglue"
+	"github.com/REDACTED/fastglue"
 	"github.com/valyala/fasthttp"
 )
 
