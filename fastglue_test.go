@@ -183,7 +183,7 @@ func Test405Response(t *testing.T) {
 	}
 }
 
-func TestRequiredParamsBadRequest(t *testing.T) {
+func TestBadGetRequest(t *testing.T) {
 	resp := GETrequest(srvRoot+"/get", t)
 
 	if resp.StatusCode != fasthttp.StatusBadRequest {
