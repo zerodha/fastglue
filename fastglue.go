@@ -53,12 +53,8 @@ type Fastglue struct {
 
 // New creates and returns a new instance of Fastglue.
 func New() *Fastglue {
-	r := fasthttprouter.New()
-	r.NotFound = notFoundHandler
-	r.MethodNotAllowed = badMethodHandler
-
 	return &Fastglue{
-		Router: r,
+		Router: fasthttprouter.New(),
 		before: make([]FastMiddleware, 0),
 		after:  make([]FastMiddleware, 0),
 	}

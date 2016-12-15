@@ -70,7 +70,7 @@ func myGEThandler(r *fastglue.Request) error {
 }
 
 func main() {
-	f := fastglue.New()
+	f := fastglue.NewGlue()
 	f.SetContext(&App{version: "v3.0.0"})
 	f.Before(checkToken)
 

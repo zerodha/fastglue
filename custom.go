@@ -23,6 +23,16 @@ type Envelope struct {
 	ErrorType *ErrorType  `json:"error_type,omitempty"`
 }
 
+// NewGlue creates and returns a new instance of Fastglue with custom error
+// handlers pre-bound.
+func NewGlue() *Fastglue {
+	f := New()
+	f.Router.MethodNotAllowed = BadMethodHandler
+	f.Router.NotFound = NotFoundHandler
+
+	return f
+}
+
 // DecodeFail uses Decode() to unmarshal the Post body, but in addition to returning
 // an error on failure, writes the error to the HTTP response directly. This helps
 // avoid repeating read/parse/validate boilerplate inside every single HTTP handler.
@@ -86,7 +96,8 @@ func RequireParams(h FastRequestHandler, fields []string) FastRequestHandler {
 	}
 }
 
-func notFoundHandler(r *fasthttp.RequestCtx) {
+// NotFoundHandler produces an enveloped JSON response for 404 errors.
+func NotFoundHandler(r *fasthttp.RequestCtx) {
 	req := &Request{
 		RequestCtx: r,
 	}
@@ -94,7 +105,8 @@ func notFoundHandler(r *fasthttp.RequestCtx) {
 	req.SendErrorEnvelope(fasthttp.StatusNotFound, "Route not found", nil, excepGeneral)
 }
 
-func badMethodHandler(r *fasthttp.RequestCtx) {
+// BadMethodHandler produces an enveloped JSON response for 405 errors.
+func BadMethodHandler(r *fasthttp.RequestCtx) {
 	req := &Request{
 		RequestCtx: r,
 	}

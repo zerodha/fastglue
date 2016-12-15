@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	srv        = New()
+	srv        = NewGlue()
 	srvAddress = ":8080"
 	srvRoot    = "http://127.0.0.1:8080"
 )
@@ -163,7 +163,7 @@ func Test404Response(t *testing.T) {
 	b, err := ioutil.ReadAll(resp.Body)
 	err = json.Unmarshal(b, &e)
 	if err != nil {
-		t.Fatalf("Couldn't unmarshal envelope: %v", err)
+		t.Fatalf("Couldn't unmarshal envelope: %v: %s", err, b)
 	}
 
 	if e.ErrorType == nil || *e.ErrorType != "GeneralException" || e.Status != "error" {
