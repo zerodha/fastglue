@@ -244,6 +244,23 @@ func TestDeleteRequest(t *testing.T) {
 	}
 }
 
+func TestBadPOSTJsonRequest(t *testing.T) {
+	// Struct that we'll marshal to JSON and post.
+	resp := POSTJsonRequest(srvRoot+"/post_json?param=123&name=test", []byte{0}, t)
+	if resp.StatusCode != fasthttp.StatusBadRequest {
+		t.Fatalf("Expected status %d != %d", fasthttp.StatusBadRequest, resp.StatusCode)
+	}
+
+	e, b := decodeEnevelope(resp, t)
+	if e.Status != "error" {
+		t.Fatalf("Expected `status` field error != %s: %s", e.Status, b)
+	}
+
+	if e.ErrorType == nil || *e.ErrorType != "InputException" {
+		t.Fatalf("Expected `error_type` field InputException != %s", *e.ErrorType)
+	}
+}
+
 func TestPOSTJsonRequest(t *testing.T) {
 	// Struct that we'll marshal to JSON and post.
 	p := Person{
