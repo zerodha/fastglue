@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
 	"testing"
 	"time"
@@ -17,6 +18,7 @@ var (
 	srv        = NewGlue()
 	srvAddress = ":8080"
 	srvRoot    = "http://127.0.0.1:8080"
+	sck        = "/tmp/fastglue-test.sock"
 )
 
 type App struct {
@@ -51,10 +53,8 @@ func init() {
 	srv.POST("/post_json", myPOSTJsonhandler)
 	srv.GET("/required", RequireParams(myGEThandler, []string{"name"}))
 
-	log.Println("Listening on", srvAddress)
-
 	go (func() {
-		log.Fatal(fasthttp.ListenAndServe(srvAddress, srv.Handler()))
+		log.Fatal(srv.ListenAndServe(srvAddress, sck))
 	})()
 
 	time.Sleep(time.Second * 2)
@@ -152,6 +152,14 @@ func myPOSTJsonhandler(r *Request) error {
 	p.Version = r.Context.(*App).version
 
 	return r.SendEnvelope(p)
+}
+
+func TestSocketConnection(t *testing.T) {
+	c, err := net.Dial("unix", sck)
+	if err != nil {
+		t.Fatalf("Can't connect via socket %s: %v", sck, err)
+	}
+	defer c.Close()
 }
 
 func Test404Response(t *testing.T) {

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"errors"
+	"fmt"
 
 	"github.com/buaazp/fasthttprouter"
 	"github.com/valyala/fasthttp"
@@ -58,6 +59,25 @@ func New() *Fastglue {
 		before: make([]FastMiddleware, 0),
 		after:  make([]FastMiddleware, 0),
 	}
+}
+
+// ListenAndServe is a wrapper for fasthttp.ListenAndServe. It takes a TCP address
+// and an optional UNIX socket file path and starts listeners.
+func (f *Fastglue) ListenAndServe(address string, socket string) error {
+	if address == "" || (address == "" && socket == "") {
+		panic("Either a TCP address with an a optional UNIX socket path are required to start the server")
+	}
+
+	if socket != "" {
+		go func() {
+			err := fasthttp.ListenAndServeUNIX(socket, 0666, f.Handler())
+			if err != nil {
+				panic(fmt.Sprintf("Error opening socket: %v", err))
+			}
+		}()
+	}
+
+	return fasthttp.ListenAndServe(address, f.Handler())
 }
 
 // hanlder is the "proxy" abstraction that converts a fastglue handler into

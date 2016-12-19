@@ -79,5 +79,8 @@ func main() {
 
 	address := ":8080"
 	log.Println("Listening on", address)
-	log.Fatal(fasthttp.ListenAndServe(address, f.Handler()))
+	f.ListenAndServe(address, "")
+
+	// fasthttp can be invoked directly like this as well:
+	// fasthttp.ListenAndServe(address, f.Handler())
 }
