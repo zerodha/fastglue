@@ -55,7 +55,11 @@ func (r *Request) SendEnvelope(data interface{}) error {
 		Data:    data,
 	}
 
-	return r.SendJSON(fasthttp.StatusOK, e)
+	if err := r.SendJSON(fasthttp.StatusOK, e); err != nil {
+		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, "Couldn't marshal JSON: `"+err.Error()+"`", nil, excepGeneral)
+	}
+
+	return nil
 }
 
 // SendErrorEnvelope is a highly opinionated method that sends error responses in a predefined
