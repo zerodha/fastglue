@@ -53,6 +53,7 @@ func init() {
 	srv.POST("/post", myPOSThandler)
 	srv.PUT("/put", myPOSThandler)
 	srv.POST("/post_json", myPOSTJsonhandler)
+	srv.GET("/raw_json", myRawJSONhandler)
 	srv.GET("/required", RequireParams(myGEThandler, []string{"name"}))
 
 	log.Println("Listening on Test Server", srvAddress)
@@ -110,19 +111,19 @@ func POSTJsonRequest(url string, j []byte, t *testing.T) *http.Response {
 	return resp
 }
 
-func decodeEnevelope(resp *http.Response, t *testing.T) (Envelope, string) {
+func decodeEnvelope(resp *http.Response, t *testing.T) (Envelope, string) {
 	defer resp.Body.Close()
 
 	// JSON envelope body.
 	var e Envelope
 	b, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		t.Fatalf("Couldn't read response body: %v", err)
+		t.Fatalf("Couldn't read response body: %v: %s", err, b)
 	}
 
 	err = json.Unmarshal(b, &e)
 	if err != nil {
-		t.Fatalf("Couldn't unmarshal envelope: %v", err)
+		t.Fatalf("Couldn't unmarshal envelope: %v: %s", err, b)
 	}
 
 	return e, string(b)
@@ -164,6 +165,12 @@ func myPOSThandler(r *Request) error {
 	p.Version = r.Context.(*App).version
 
 	return r.SendEnvelope(p)
+}
+
+func myRawJSONhandler(r *Request) error {
+	j := []byte(`{"raw":"json"}`)
+
+	return r.SendEnvelope(json.RawMessage(j))
 }
 
 func myPOSTJsonhandler(r *Request) error {
@@ -222,7 +229,7 @@ func Test405Response(t *testing.T) {
 		t.Fatalf("Expected status %d != %d", fasthttp.StatusMethodNotAllowed, resp.StatusCode)
 	}
 
-	e, b := decodeEnevelope(resp, t)
+	e, b := decodeEnvelope(resp, t)
 	if e.ErrorType == nil || *e.ErrorType != "GeneralException" || e.Status != "error" {
 		t.Fatalf("Incorrect status or error_type fields: %s", b)
 	}
@@ -235,7 +242,7 @@ func TestBadGetRequest(t *testing.T) {
 		t.Fatalf("Expected status %d != %d", fasthttp.StatusBadRequest, resp.StatusCode)
 	}
 
-	e, _ := decodeEnevelope(resp, t)
+	e, _ := decodeEnvelope(resp, t)
 	if e.Status != "error" {
 		t.Fatalf("Expected `status` field error != %s", e.Status)
 	}
@@ -252,7 +259,7 @@ func TestGetRequest(t *testing.T) {
 		t.Fatalf("Expected status %d != %d", fasthttp.StatusOK, resp.StatusCode)
 	}
 
-	e, _ := decodeEnevelope(resp, t)
+	e, _ := decodeEnvelope(resp, t)
 	if e.Status != "success" {
 		t.Fatalf("Expected `status` field success != %s", e.Status)
 	}
@@ -267,6 +274,22 @@ func TestGetRequest(t *testing.T) {
 	}
 }
 
+func TestRawJSONrequest(t *testing.T) {
+	resp := GETrequest(srvRoot+"/raw_json?param=123&name=test", t)
+
+	e, _ := decodeEnvelope(resp, t)
+	if e.Status != "success" {
+		t.Fatalf("Expected `status` field success != %s", e.Status)
+	}
+
+	fmt.Println(e.Data)
+
+	out := "map[raw:json]"
+	if fmt.Sprintf("%v", e.Data) != out {
+		t.Fatalf("Expected `data` field %s != %v", out, e.Data)
+	}
+}
+
 func TestDeleteRequest(t *testing.T) {
 	resp := DELETErequest(srvRoot+"/delete?param=123&name=test", t)
 
@@ -274,7 +297,7 @@ func TestDeleteRequest(t *testing.T) {
 		t.Fatalf("Expected status %d != %d", fasthttp.StatusOK, resp.StatusCode)
 	}
 
-	e, _ := decodeEnevelope(resp, t)
+	e, _ := decodeEnvelope(resp, t)
 	if e.Status != "success" {
 		t.Fatalf("Expected `status` field success != %s", e.Status)
 	}
@@ -297,7 +320,7 @@ func TestRequiredParams(t *testing.T) {
 		t.Fatalf("Expected status %d != %d", fasthttp.StatusBadRequest, resp.StatusCode)
 	}
 
-	e, _ := decodeEnevelope(resp, t)
+	e, _ := decodeEnvelope(resp, t)
 	if e.Status != "error" {
 		t.Fatalf("Expected `status` field error != %s", e.Status)
 	}
@@ -312,7 +335,7 @@ func TestRequiredParams(t *testing.T) {
 		t.Fatalf("Expected status %d != %d", fasthttp.StatusOK, resp.StatusCode)
 	}
 
-	e, _ = decodeEnevelope(resp, t)
+	e, _ = decodeEnvelope(resp, t)
 	if e.Status != "success" {
 		t.Fatalf("Expected `status` field success != %s", e.Status)
 	}
@@ -330,7 +353,7 @@ func TestBadPOSTJsonRequest(t *testing.T) {
 		t.Fatalf("Expected status %d != %d", fasthttp.StatusBadRequest, resp.StatusCode)
 	}
 
-	e, b := decodeEnevelope(resp, t)
+	e, b := decodeEnvelope(resp, t)
 	if e.Status != "error" {
 		t.Fatalf("Expected `status` field error != %s: %s", e.Status, b)
 	}
