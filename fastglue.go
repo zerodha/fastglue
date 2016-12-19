@@ -56,8 +56,6 @@ type Fastglue struct {
 func New() *Fastglue {
 	return &Fastglue{
 		Router: fasthttprouter.New(),
-		before: make([]FastMiddleware, 0),
-		after:  make([]FastMiddleware, 0),
 	}
 }
 
