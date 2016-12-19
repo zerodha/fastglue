@@ -59,7 +59,7 @@ func (r *Request) SendEnvelope(data interface{}) error {
 		r.RequestCtx.SetStatusCode(fasthttp.StatusOK)
 		r.RequestCtx.SetContentType(JSON)
 
-		r.RequestCtx.Write([]byte(`{"status": ` + statusSuccess + `, "message": null, "data": `))
+		r.RequestCtx.Write([]byte(`{"status": "` + statusSuccess + `", "message": null, "data": `))
 		r.RequestCtx.Write(j)
 		r.RequestCtx.Write([]byte(`}`))
 
