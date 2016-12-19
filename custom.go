@@ -1,6 +1,10 @@
 package fastglue
 
-import "github.com/valyala/fasthttp"
+import (
+	"encoding/json"
+
+	"github.com/valyala/fasthttp"
+)
 
 const (
 	statusSuccess = "success"
@@ -49,6 +53,19 @@ func (r *Request) DecodeFail(v interface{}) error {
 // SendEnvelope is a highly opinionated method that sends success responses in a predefined
 // structure which has become customary at Rainmatter internally.
 func (r *Request) SendEnvelope(data interface{}) error {
+	// If data is json.RawMessage, we're getting a pre-formatted JSON byte array.
+	// Skip the marshaller, fake the envelope and send it right away.
+	if j, ok := data.(json.RawMessage); ok {
+		r.RequestCtx.SetStatusCode(fasthttp.StatusOK)
+		r.RequestCtx.SetContentType(JSON)
+
+		r.RequestCtx.Write([]byte(`{"status": "success", "message": null, "data": `))
+		r.RequestCtx.Write(j)
+		r.RequestCtx.Write([]byte(`}`))
+
+		return nil
+	}
+
 	e := Envelope{
 		Status:  statusSuccess,
 		Message: nil,
