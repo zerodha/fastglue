@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 
+	"github.com/gorilla/schema"
 	"github.com/REDACTED/fastglue"
 	"github.com/valyala/fasthttp"
 )
@@ -20,14 +21,15 @@ type App struct {
 var (
 	TokenExc fastglue.ErrorType = "TokenException"
 	InputExc fastglue.ErrorType = "InputException"
+	decoder  *schema.Decoder
 )
 
 // Person is a JSON data payload we'll accept.
 type Person struct {
-	Name    string `json:"name"`
-	Age     int    `json:"age"`
-	Comment string `json:"comment"`
-	Version string `json:"version"`
+	Name    *string `json:"name" required:"true"`
+	Age     *int    `json:"age" required:"true" schema:"age,required"`
+	Comment string  `json:"comment"`
+	Version string  `json:"version"`
 }
 
 // This "Before()" middleware checks if a 'token' param is set with the value '123'.
@@ -47,7 +49,7 @@ func myPOSThandler(r *fastglue.Request) error {
 		return err
 	}
 
-	if p.Age < 18 {
+	if *p.Age < 18 {
 		r.SendErrorEnvelope(fasthttp.StatusBadRequest, "We only accept Persons above 18", struct {
 			Random string `json:"random"`
 		}{"Some random error payload"}, InputExc)
@@ -72,7 +74,7 @@ func myGEThandler(r *fastglue.Request) error {
 func main() {
 	f := fastglue.NewGlue()
 	f.SetContext(&App{version: "v3.0.0"})
-	f.Before(checkToken)
+	// f.Before(checkToken)
 
 	f.POST("/post", myPOSThandler)
 	f.GET("/get", fastglue.RequireParams(myGEThandler, []string{"name"}))

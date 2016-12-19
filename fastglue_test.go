@@ -8,6 +8,8 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -28,10 +30,10 @@ type App struct {
 }
 
 type Person struct {
-	Name    string `json:"name"`
-	Age     int    `json:"age"`
-	Comment string `json:"comment"`
-	Version string `json:"version"`
+	Name    *string `json:"name" required:"true" schema:"name,required"`
+	Age     *int    `json:"age" schema:"age,required" required:"true"`
+	Comment string  `json:"comment"`
+	Version string  `json:"version"`
 }
 
 type PersonEnvelope struct {
@@ -53,6 +55,7 @@ func init() {
 	srv.POST("/post_json", myPOSTJsonhandler)
 	srv.GET("/required", RequireParams(myGEThandler, []string{"name"}))
 
+	log.Println("Listening on Test Server", srvAddress)
 	go (func() {
 		log.Fatal(srv.ListenAndServe(srvAddress, sck))
 	})()
@@ -64,6 +67,19 @@ func GETrequest(url string, t *testing.T) *http.Response {
 	resp, err := http.Get(url)
 	if err != nil {
 		t.Fatalf("Failed GET request: %v", err)
+	}
+
+	return resp
+}
+
+func POSTrequest(url string, form url.Values, t *testing.T) *http.Response {
+	req, _ := http.NewRequest("POST", url, strings.NewReader(form.Encode()))
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	c := http.Client{}
+	resp, err := c.Do(req)
+
+	if err != nil {
+		t.Fatalf("Failed POST request: %v", err)
 	}
 
 	return resp
@@ -129,7 +145,25 @@ func myGEThandler(r *Request) error {
 }
 
 func myPOSThandler(r *Request) error {
-	return nil
+	var p Person
+	if err := r.DecodeFail(&p); err != nil {
+		return err
+	}
+
+	if *(p.Age) < 18 {
+		r.SendErrorEnvelope(fasthttp.StatusBadRequest, "We only accept Persons above 18", struct {
+			Random string `json:"random"`
+		}{"Some random error payload"}, "InputException")
+
+		return nil
+	}
+
+	p.Comment = "Here's a comment the server added!"
+
+	// Get the version from the injected app context.
+	p.Version = r.Context.(*App).version
+
+	return r.SendEnvelope(p)
 }
 
 func myPOSTJsonhandler(r *Request) error {
@@ -138,7 +172,7 @@ func myPOSTJsonhandler(r *Request) error {
 		return err
 	}
 
-	if p.Age < 18 {
+	if *(p.Age) < 18 {
 		r.SendErrorEnvelope(fasthttp.StatusBadRequest, "We only accept Persons above 18", struct {
 			Random string `json:"random"`
 		}{"Some random error payload"}, "InputException")
@@ -307,14 +341,13 @@ func TestBadPOSTJsonRequest(t *testing.T) {
 }
 
 func TestPOSTJsonRequest(t *testing.T) {
-	// Struct that we'll marshal to JSON and post.
-	p := Person{
-		Name: "tester",
-		Age:  30,
-	}
-	j, _ := json.Marshal(p)
+	pData := []byte(`
+			{
+				"name": "tester",
+				"age" : 30
+			}`)
 
-	resp := POSTJsonRequest(srvRoot+"/post_json?param=123&name=test", j, t)
+	resp := POSTJsonRequest(srvRoot+"/post_json?param=123&name=test", pData, t)
 	b, _ := ioutil.ReadAll(resp.Body)
 	if resp.StatusCode != fasthttp.StatusOK {
 		t.Fatalf("Expected status %d != %d: %s", fasthttp.StatusOK, resp.StatusCode, b)
@@ -326,7 +359,45 @@ func TestPOSTJsonRequest(t *testing.T) {
 		t.Fatalf("Couldn't unmarshal JSON response: %v = %s", err, b)
 	}
 
-	if pe.Person.Age != 30 || pe.Person.Version != "xxx" || len(pe.Person.Comment) < 1 {
+	if *pe.Person.Age != 30 || pe.Person.Version != "xxx" || len(pe.Person.Comment) < 1 {
 		t.Fatalf("Unexpected enveloped response: (age: 30, version: xxx) != %s", b)
 	}
+}
+
+func TestValidationJsonRequest(t *testing.T) {
+	personData := []byte(`
+				{
+					"name": "test"
+				}`)
+
+	resp := POSTJsonRequest(srvRoot+"/post_json?param=123&name=test", personData, t)
+	b, _ := ioutil.ReadAll(resp.Body)
+	// This should fail with error message, `age is invalid`.
+	if resp.StatusCode != fasthttp.StatusBadRequest {
+		t.Fatalf("Expected status %d != %d: %s", fasthttp.StatusOK, resp.StatusCode, b)
+	}
+	var pe Person
+	err := json.Unmarshal(b, &pe)
+	if err != nil {
+		t.Fatalf("Couldn't unmarshal JSON response: %v = %s", err, b)
+	}
+}
+
+func TestPOSTFormRequest(t *testing.T) {
+	form := url.Values{}
+	form.Add("name", "test")
+
+	resp := POSTrequest(srvRoot+"/post?param=123", form, t)
+	b, _ := ioutil.ReadAll(resp.Body)
+	// This should fail with error message `age is empty`.
+	if resp.StatusCode != fasthttp.StatusBadRequest {
+		t.Fatalf("Expected status %d != %d: %s", fasthttp.StatusOK, resp.StatusCode, b)
+	}
+
+	var e Envelope
+	err := json.Unmarshal(b, &e)
+	if err != nil {
+		t.Fatalf("Couldn't unmarshal JSON response: %v = %s", err, b)
+	}
+
 }

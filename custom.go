@@ -38,7 +38,7 @@ func NewGlue() *Fastglue {
 // avoid repeating read/parse/validate boilerplate inside every single HTTP handler.
 func (r *Request) DecodeFail(v interface{}) error {
 	if err := r.Decode(v); err != nil {
-		r.SendErrorEnvelope(fasthttp.StatusBadRequest, "Invalid JSON body: `"+err.Error()+"`", nil, excepBadRequest)
+		r.SendErrorEnvelope(fasthttp.StatusBadRequest, "Invalid POST body: `"+err.Error()+"`", nil, excepBadRequest)
 
 		return err
 	}

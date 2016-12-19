@@ -6,14 +6,20 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"reflect"
+	"strings"
 
 	"github.com/buaazp/fasthttprouter"
+	"github.com/gorilla/schema"
 	"github.com/valyala/fasthttp"
 )
 
 var (
 	constJSON = []byte("json")
 	constXML  = []byte("xml")
+
+	// Decoder for standard POST Form data decoding.
+	decoder *schema.Decoder
 )
 
 const (
@@ -50,6 +56,11 @@ type Fastglue struct {
 
 	before []FastMiddleware
 	after  []FastMiddleware
+}
+
+func init() {
+	// Initialise the decoder.
+	decoder = schema.NewDecoder()
 }
 
 // New creates and returns a new instance of Fastglue.
@@ -170,12 +181,55 @@ func (r *Request) Decode(v interface{}) error {
 		ct  = r.RequestCtx.Request.Header.ContentType()
 	)
 
+	// Validate compulsory fields in JSON body. The struct to be unmarshaled into needs a struct tag with required=true for enforcing presence.
 	if bytes.Contains(ct, constJSON) {
 		err = json.Unmarshal(r.RequestCtx.PostBody(), &v)
+		value := reflect.ValueOf(v).Elem()
+		for i := 0; i < value.NumField(); i++ {
+			tag := value.Type().Field(i).Tag.Get("required")
+			jTagName := strings.Split(value.Type().Field(i).Tag.Get("json"), ",")[0]
+			if jTagName == "" {
+				jTagName = value.Type().Field(i).Name
+			}
+			vv := value.Field(i)
+			if tag == "true" {
+
+				if vv.Kind() == reflect.Ptr && vv.IsNil() {
+					return errors.New(jTagName + " is invalid.")
+				}
+			}
+
+			if tag == "nonzero" {
+				switch vv.Kind() {
+				case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+					if vv.Int() == 0 {
+						return errors.New(jTagName + " can't be zero.")
+					}
+				case reflect.Float32, reflect.Float64:
+					if vv.Float() == 0 {
+						return errors.New(jTagName + " can't be zero.")
+					}
+				case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+					if vv.Uint() == 0 {
+						return errors.New(jTagName + " can't be zero.")
+					}
+				case reflect.String:
+					if vv.String() == "" {
+						return errors.New(jTagName + " can't be empty.")
+					}
+				}
+			}
+		}
 	} else if bytes.Contains(ct, constXML) {
 		err = xml.Unmarshal(r.RequestCtx.PostBody(), &v)
 	} else {
-		return errors.New("Unknown encoding: " + string(ct))
+		// Try Regular POST FORM decoding if JSON/XML headers aren't set.
+		// Add schema:"<schema name>,required" struct tag to the struct to be unmarshalled into.
+
+		//Make a Map of POST Form Data.
+		postDataMap := makeMapFromArgs(r.RequestCtx.PostArgs())
+		// Decode map into our interface.
+		err = decoder.Decode(v, postDataMap)
 	}
 
 	if err != nil {
@@ -183,6 +237,20 @@ func (r *Request) Decode(v interface{}) error {
 	}
 
 	return nil
+}
+
+// Helper to make a Map from FastHttp POST Args.
+func makeMapFromArgs(args *fasthttp.Args) map[string][]string {
+	postFormMap := make(map[string][]string)
+	args.VisitAll(func(k, v []byte) {
+		if val, ok := postFormMap[string(k)]; !ok {
+			postFormMap[string(k)] = []string{string(v)}
+		} else {
+			postFormMap[string(k)] = append(val, string(v))
+		}
+	})
+
+	return postFormMap
 }
 
 // SendBytes writes a []byte payload to the HTTP response and also
