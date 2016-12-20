@@ -66,6 +66,7 @@ func (r *Request) SendEnvelope(data interface{}) error {
 		return nil
 	}
 
+	// Standard marshalled envelope.
 	e := Envelope{
 		Status:  statusSuccess,
 		Message: nil,
