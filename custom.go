@@ -2,6 +2,7 @@ package fastglue
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"github.com/valyala/fasthttp"
 )
@@ -107,9 +108,26 @@ func (r *Request) SendErrorEnvelope(code int, message string, data interface{}, 
 func RequireParams(h FastRequestHandler, fields []string) FastRequestHandler {
 	return func(r *Request) error {
 		for _, f := range fields {
-			if (!r.RequestCtx.PostArgs().Has(f) && !r.RequestCtx.QueryArgs().Has(f)) &&
-				(len(r.RequestCtx.PostArgs().Peek(f)) == 0 || len(r.RequestCtx.QueryArgs().Peek(f)) == 0) {
+			if (!r.RequestCtx.PostArgs().Has(f) && !r.RequestCtx.QueryArgs().Has(f)) ||
+				(len(r.RequestCtx.PostArgs().Peek(f)) == 0 && len(r.RequestCtx.QueryArgs().Peek(f)) == 0) {
 				r.SendErrorEnvelope(fasthttp.StatusBadRequest, "Missing or empty field `"+f+"`", nil, excepBadRequest)
+				return nil
+			}
+		}
+
+		return h(r)
+	}
+}
+
+// RequireParams is an (opinionated) middleware that checks if a given set of parameters are set in
+// the GET or POST params and if each of them meets a minimum length criteria.
+// If not, it fails the request with an error envelop.
+func RequireLengthParams(h FastRequestHandler, fields map[string]int) FastRequestHandler {
+	return func(r *Request) error {
+		for f, ln := range fields {
+			if (!r.RequestCtx.PostArgs().Has(f) && !r.RequestCtx.QueryArgs().Has(f)) ||
+				(len(r.RequestCtx.PostArgs().Peek(f)) < ln && len(r.RequestCtx.QueryArgs().Peek(f)) < ln) {
+				r.SendErrorEnvelope(fasthttp.StatusBadRequest, fmt.Sprintf("Missing or invalid field `%s`. Min length is %d.", f, ln), nil, excepBadRequest)
 				return nil
 			}
 		}
