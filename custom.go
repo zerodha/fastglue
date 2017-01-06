@@ -23,7 +23,7 @@ type ErrorType string
 // structure.
 type Envelope struct {
 	Status    string      `json:"status"`
-	Message   *string     `json:"message"`
+	Message   *string     `json:"message,omitempty"`
 	Data      interface{} `json:"data"`
 	ErrorType *ErrorType  `json:"error_type,omitempty"`
 }
@@ -60,7 +60,7 @@ func (r *Request) SendEnvelope(data interface{}) error {
 		r.RequestCtx.SetStatusCode(fasthttp.StatusOK)
 		r.RequestCtx.SetContentType(JSON)
 
-		r.RequestCtx.Write([]byte(`{"status": "` + statusSuccess + `", "message": null, "data": `))
+		r.RequestCtx.Write([]byte(`{"status": "` + statusSuccess + `", "data": `))
 		r.RequestCtx.Write(j)
 		r.RequestCtx.Write([]byte(`}`))
 
@@ -69,9 +69,8 @@ func (r *Request) SendEnvelope(data interface{}) error {
 
 	// Standard marshalled envelope.
 	e := Envelope{
-		Status:  statusSuccess,
-		Message: nil,
-		Data:    data,
+		Status: statusSuccess,
+		Data:   data,
 	}
 
 	if err := r.SendJSON(fasthttp.StatusOK, e); err != nil {
