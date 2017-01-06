@@ -103,9 +103,9 @@ func (r *Request) SendErrorEnvelope(code int, message string, data interface{}, 
 	return r.SendJSON(code, e)
 }
 
-// RequireParams is an (opinionated) middleware that checks if a given set of parameters are set in
+// ReqParams is an (opinionated) middleware that checks if a given set of parameters are set in
 // the GET or POST params. If not, it fails the request with an error envelop.
-func RequireParams(h FastRequestHandler, fields []string) FastRequestHandler {
+func ReqParams(h FastRequestHandler, fields []string) FastRequestHandler {
 	return func(r *Request) error {
 		for _, f := range fields {
 			if (!r.RequestCtx.PostArgs().Has(f) && !r.RequestCtx.QueryArgs().Has(f)) ||
@@ -119,10 +119,10 @@ func RequireParams(h FastRequestHandler, fields []string) FastRequestHandler {
 	}
 }
 
-// RequireParams is an (opinionated) middleware that checks if a given set of parameters are set in
+// ReqLenParams is an (opinionated) middleware that checks if a given set of parameters are set in
 // the GET or POST params and if each of them meets a minimum length criteria.
 // If not, it fails the request with an error envelop.
-func RequireLengthParams(h FastRequestHandler, fields map[string]int) FastRequestHandler {
+func ReqLenParams(h FastRequestHandler, fields map[string]int) FastRequestHandler {
 	return func(r *Request) error {
 		for f, ln := range fields {
 			if (!r.RequestCtx.PostArgs().Has(f) && !r.RequestCtx.QueryArgs().Has(f)) ||

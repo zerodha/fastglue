@@ -54,11 +54,11 @@ func init() {
 	srv.PUT("/put", myPOSThandler)
 	srv.POST("/post_json", myPOSTJsonhandler)
 	srv.GET("/raw_json", myRawJSONhandler)
-	srv.GET("/required", RequireParams(myGEThandler, []string{"name"}))
+	srv.GET("/required", ReqParams(myGEThandler, []string{"name"}))
 
 	log.Println("Listening on Test Server", srvAddress)
 	go (func() {
-		log.Fatal(srv.ListenAndServe(srvAddress, sck))
+		log.Fatal(srv.ListenAndServe(srvAddress, sck, nil))
 	})()
 
 	time.Sleep(time.Second * 2)

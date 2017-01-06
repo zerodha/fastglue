@@ -51,6 +51,7 @@ type Request struct {
 // Fastglue is the "glue" wrapper over fasthttp and fasthttprouter.
 type Fastglue struct {
 	Router      *fasthttprouter.Router
+	Server      *fasthttp.Server
 	context     interface{}
 	contentType string
 
@@ -70,23 +71,33 @@ func New() *Fastglue {
 	}
 }
 
-// ListenAndServe is a wrapper for fasthttp.ListenAndServe. It takes a TCP address
-// and an optional UNIX socket file path and starts listeners.
-func (f *Fastglue) ListenAndServe(address string, socket string) error {
+// ListenAndServe is a wrapper for fasthttp.ListenAndServe. It takes a TCP address,
+// an optional UNIX socket file path and starts listeners, and an optional fasthttp.Server.
+func (f *Fastglue) ListenAndServe(address string, socket string, s *fasthttp.Server) error {
 	if address == "" || (address == "" && socket == "") {
 		panic("Either a TCP address with an a optional UNIX socket path are required to start the server")
 	}
 
+	// No server passed, create a default one.
+	if s == nil {
+		s = &fasthttp.Server{}
+	}
+	f.Server = s
+
+	if s.Handler == nil {
+		s.Handler = f.Handler()
+	}
+
 	if socket != "" {
 		go func() {
-			err := fasthttp.ListenAndServeUNIX(socket, 0666, f.Handler())
+			err := s.ListenAndServeUNIX(socket, 0666)
 			if err != nil {
 				panic(fmt.Sprintf("Error opening socket: %v", err))
 			}
 		}()
 	}
 
-	return fasthttp.ListenAndServe(address, f.Handler())
+	return s.ListenAndServe(address)
 }
 
 // hanlder is the "proxy" abstraction that converts a fastglue handler into
@@ -120,6 +131,7 @@ func (f *Fastglue) handler(h FastRequestHandler) func(*fasthttp.RequestCtx) {
 // Handler returns fastglue's central fasthttp handler that can be registered
 // to a fasthttp server instance.
 func (f *Fastglue) Handler() func(*fasthttp.RequestCtx) {
+	// return fasthttp.TimeoutHandler(f.Router.Handler, f.Server.WriteTimeout, "Request timed out")
 	return f.Router.Handler
 }
 
