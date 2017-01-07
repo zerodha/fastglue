@@ -145,14 +145,18 @@ func (f *Fastglue) SetContext(c interface{}) {
 // Before registers a fastglue middleware that's executed before an HTTP request
 // is handed over to the registered handler. This is useful for doing "global"
 // checks, for instance, session and cookies.
-func (f *Fastglue) Before(h FastMiddleware) {
-	f.before = append(f.before, h)
+func (f *Fastglue) Before(fm ...FastMiddleware) {
+	for _, h := range fm {
+		f.before = append(f.before, h)
+	}
 }
 
 // After registers a fastglue middleware that's executed after a registered handler
 // has finished executing. This is useful to do things like central request logging.
-func (f *Fastglue) After(h FastMiddleware) {
-	f.after = append(f.after, h)
+func (f *Fastglue) After(fm ...FastMiddleware) {
+	for _, h := range fm {
+		f.after = append(f.after, h)
+	}
 }
 
 // POST is fastglue's wrapper over fasthttprouter's handler.

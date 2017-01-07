@@ -282,8 +282,6 @@ func TestRawJSONrequest(t *testing.T) {
 		t.Fatalf("Expected `status` field success != %s", e.Status)
 	}
 
-	fmt.Println(e.Data)
-
 	out := "map[raw:json]"
 	if fmt.Sprintf("%v", e.Data) != out {
 		t.Fatalf("Expected `data` field %s != %v", out, e.Data)
