@@ -307,3 +307,30 @@ func (r *Request) SendJSON(code int, v interface{}) error {
 
 	return err
 }
+
+// Redirect redirects to the given URI.
+// Accepts optional query args and anchor tags.
+// Test : curl -I -L -X GET "localhost:8000/redirect"
+func (r *Request) Redirect(uri string, code int, args map[string]interface{}, anchor string) error {
+
+	var redirectURI string
+
+	rURI := r.RequestCtx.URI()
+	rURI.Update(uri)
+
+	// Fill query args.
+	for k, v := range args {
+		rURI.QueryArgs().Add(k, fmt.Sprintf("%v", v))
+	}
+
+	redirectURI = rURI.String()
+
+	// If anchor is sent, append to the URI.
+	if anchor != "" {
+		redirectURI = "#" + anchor
+	}
+
+	// Redirect
+	r.RequestCtx.Redirect(redirectURI, code)
+	return nil
+}

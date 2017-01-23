@@ -49,6 +49,7 @@ func init() {
 	srv.Before(getParamMiddleware)
 
 	srv.GET("/get", myGEThandler)
+	srv.GET("/redirect", myRedirectHandler)
 	srv.DELETE("/delete", myGEThandler)
 	srv.POST("/post", myPOSThandler)
 	srv.PUT("/put", myPOSThandler)
@@ -143,6 +144,13 @@ func myGEThandler(r *Request) error {
 	return r.SendEnvelope(struct {
 		Something string `json:"out"`
 	}{"name=" + string(r.RequestCtx.FormValue("name"))})
+}
+
+func myRedirectHandler(r *Request) error {
+	return r.Redirect("/get", fasthttp.StatusFound, map[string]interface{}{
+		"name":  "Redirected" + string(r.RequestCtx.FormValue("name")),
+		"param": "123",
+	}, "")
 }
 
 func myPOSThandler(r *Request) error {
@@ -421,4 +429,26 @@ func TestPOSTFormRequest(t *testing.T) {
 		t.Fatalf("Couldn't unmarshal JSON response: %v = %s", err, b)
 	}
 
+}
+
+func TestRedirectRequest(t *testing.T) {
+	resp := GETrequest(srvRoot+"/redirect?param=123&name=test", t)
+
+	if resp.StatusCode != fasthttp.StatusOK {
+		t.Fatalf("Expected status %d != %d", fasthttp.StatusOK, resp.StatusCode)
+	}
+
+	e, _ := decodeEnvelope(resp, t)
+	if e.Status != "success" {
+		t.Fatalf("Expected `status` field success != %s", e.Status)
+	}
+
+	if e.ErrorType != nil {
+		t.Fatalf("Expected `error_type` field nil != %s", *e.ErrorType)
+	}
+
+	out := "map[out:name=Redirectedtest]"
+	if fmt.Sprintf("%v", e.Data) != out {
+		t.Fatalf("Expected `data` field %s != %v", out, e.Data)
+	}
 }

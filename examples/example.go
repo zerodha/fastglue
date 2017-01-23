@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"time"
 
 	"github.com/gorilla/schema"
 	"github.com/REDACTED/fastglue"
@@ -71,17 +72,32 @@ func myGEThandler(r *fastglue.Request) error {
 	}{"You said your name is: " + string(r.RequestCtx.FormValue("name"))})
 }
 
+func myRedirectHandler(r *fastglue.Request) error {
+	return r.Redirect("/get", fasthttp.StatusFound, map[string]interface{}{
+		"name": "Redirected" + string(r.RequestCtx.FormValue("name")),
+	}, "")
+}
+
 func main() {
 	f := fastglue.NewGlue()
 	f.SetContext(&App{version: "v3.0.0"})
 	// f.Before(checkToken)
 
 	f.POST("/post", myPOSThandler)
-	f.GET("/get", fastglue.RequireParams(myGEThandler, []string{"name"}))
+	f.GET("/get", fastglue.ReqParams(myGEThandler, []string{"name"}))
+	f.GET("/redirect", myRedirectHandler)
 
-	address := ":8080"
+	s := &fasthttp.Server{
+		Name:                 "fastglueExample",
+		ReadTimeout:          time.Millisecond * 1000,
+		WriteTimeout:         time.Millisecond * 5000,
+		MaxRequestBodySize:   512,
+		MaxKeepaliveDuration: time.Millisecond * 300000,
+	}
+
+	address := ":8000"
 	log.Println("Listening on", address)
-	f.ListenAndServe(address, "")
+	f.ListenAndServe(address, "", s)
 
 	// fasthttp can be invoked directly like this as well:
 	// fasthttp.ListenAndServe(address, f.Handler())
