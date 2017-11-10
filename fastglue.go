@@ -312,7 +312,6 @@ func (r *Request) SendJSON(code int, v interface{}) error {
 // Accepts optional query args and anchor tags.
 // Test : curl -I -L -X GET "localhost:8000/redirect"
 func (r *Request) Redirect(uri string, code int, args map[string]interface{}, anchor string) error {
-
 	var redirectURI string
 
 	rURI := r.RequestCtx.URI()

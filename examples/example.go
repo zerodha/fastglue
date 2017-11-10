@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/gorilla/schema"
-	"github.com/REDACTED/fastglue"
 	"github.com/valyala/fasthttp"
+	"REDACTED/fastglue"
 )
 
 // App is the global config "context" that'll be injected into every Request.
@@ -89,7 +89,7 @@ func main() {
 
 	s := &fasthttp.Server{
 		Name:                 "fastglueExample",
-		ReadTimeout:          time.Millisecond * 1000,
+		ReadTimeout:          time.Millisecond * 5000,
 		WriteTimeout:         time.Millisecond * 5000,
 		MaxRequestBodySize:   512,
 		MaxKeepaliveDuration: time.Millisecond * 300000,
