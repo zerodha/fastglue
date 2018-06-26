@@ -2,6 +2,7 @@ package fastglue
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"encoding/xml"
 	"errors"
@@ -14,14 +15,6 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-var (
-	constJSON = []byte("json")
-	constXML  = []byte("xml")
-
-	// Decoder for standard POST Form data decoding.
-	decoder *schema.Decoder
-)
-
 const (
 	// JSON is an alias for the JSON content type
 	JSON = "application/json"
@@ -31,6 +24,23 @@ const (
 
 	// PLAINTEXT is an alias for the plaintext content type
 	PLAINTEXT = "text/plain"
+
+	// AuthBasic represents HTTP BasicAuth scheme.
+	AuthBasic = 1 << iota
+	// AuthToken represents the key:value Token auth scheme.
+	AuthToken = 2
+)
+
+var (
+	constJSON = []byte("json")
+	constXML  = []byte("xml")
+
+	// Authorization schemes.
+	authBasic = []byte("Basic")
+	authToken = []byte("token")
+
+	// Decoder for standard POST Form data decoding.
+	decoder *schema.Decoder
 )
 
 // FastRequestHandler is the fastglue HTTP request handler function
@@ -332,4 +342,34 @@ func (r *Request) Redirect(uri string, code int, args map[string]interface{}, an
 	// Redirect
 	r.RequestCtx.Redirect(redirectURI, code)
 	return nil
+}
+
+// ParseAuthHeader parses the Authorization header and returns an api_key and access_token
+// based on the auth schemes passed as bit flags (eg: AuthBasic, AuthBasic | AuthToken etc.).
+func (r *Request) ParseAuthHeader(schemes uint8) ([]byte, []byte, error) {
+	var (
+		h     = r.RequestCtx.Request.Header.Peek("Authorization")
+		pair  [][]byte
+		delim = []byte(":")
+	)
+
+	// Basic auth scheme.
+	if schemes&AuthBasic != 0 && bytes.HasPrefix(h, authBasic) {
+		payload, err := base64.StdEncoding.DecodeString(string(bytes.Trim(h[len(authBasic):], " ")))
+		if err != nil {
+			return nil, nil, errors.New("invalid Base64 value in Basic Authorization header")
+		}
+
+		pair = bytes.SplitN(payload, delim, 2)
+	} else if schemes&AuthToken != 0 && bytes.HasPrefix(h, authToken) {
+		pair = bytes.SplitN(bytes.Trim(h[len(authToken):], " "), delim, 2)
+	} else {
+		return nil, nil, errors.New("unknown authorization scheme")
+	}
+
+	if len(pair) != 2 {
+		return nil, nil, errors.New("authorization value should be `key`:`token`")
+	}
+
+	return pair[0], pair[1], nil
 }
