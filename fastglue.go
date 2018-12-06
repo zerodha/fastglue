@@ -332,8 +332,22 @@ func (r *Request) Redirect(uri string, code int, args map[string]interface{}, an
 		rURI.QueryArgs().Add(k, fmt.Sprintf("%v", v))
 	}
 
-	redirectURI = rURI.String()
+	// With layered proxies and loadbalancers, redirect
+	// to relative URLs may not work correctly, that is,
+	// the load balancer entry point was https but at the
+	// end of the proxy chain, it's http.
+	// So we check if the incoming hostname and the outgoing
+	// redirect URL's hostname are the same, and if yes,
+	// check for common scheme headers and overwrite the
+	// scheme if they are set.
+	if bytes.Equal(r.RequestCtx.Request.Host(), rURI.Host()) {
+		s := r.RequestCtx.Request.Header.Peek("X-Forwarded-Proto")
+		if len(s) > 0 {
+			rURI.SetScheme(string(s))
+		}
+	}
 
+	redirectURI = rURI.String()
 	// If anchor is sent, append to the URI.
 	if anchor != "" {
 		redirectURI = "#" + anchor

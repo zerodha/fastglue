@@ -82,7 +82,6 @@ func POSTrequest(url string, form url.Values, t *testing.T) *http.Response {
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	c := http.Client{}
 	resp, err := c.Do(req)
-
 	if err != nil {
 		t.Fatalf("Failed POST request: %v", err)
 	}
@@ -151,6 +150,13 @@ func myGEThandler(r *Request) error {
 
 func myRedirectHandler(r *Request) error {
 	return r.Redirect("/get", fasthttp.StatusFound, map[string]interface{}{
+		"name":  "Redirected" + string(r.RequestCtx.FormValue("name")),
+		"param": "123",
+	}, "")
+}
+
+func myRedirectExternalHandler(r *Request) error {
+	return r.Redirect("http://localhost:12345/redirect", fasthttp.StatusFound, map[string]interface{}{
 		"name":  "Redirected" + string(r.RequestCtx.FormValue("name")),
 		"param": "123",
 	}, "")
@@ -495,5 +501,25 @@ func TestRedirectRequest(t *testing.T) {
 	out := "map[out:name=Redirectedtest]"
 	if fmt.Sprintf("%v", e.Data) != out {
 		t.Fatalf("Expected `data` field %s != %v", out, e.Data)
+	}
+}
+
+func TestRedirectScheme(t *testing.T) {
+	req, _ := http.NewRequest("GET", srvRoot+"/redirect?param=123&name=test", nil)
+
+	// This should force the redirect to an https URL
+	// which should then timeout.
+	req.Header.Add("X-Forwarded-Proto", "https")
+	c := http.Client{
+		Timeout: time.Second * 3,
+	}
+	_, err := c.Do(req)
+	if err == nil {
+		t.Fatal("Automatic https redirect should have time out but no error occurred")
+	}
+	if tErr, ok := err.(net.Error); !ok {
+		t.Fatalf("Expected timeout error on https redirect but got: %v", err)
+	} else if !tErr.Timeout() {
+		t.Fatalf("Expected timeout error on https redirect but got: %v", err)
 	}
 }
