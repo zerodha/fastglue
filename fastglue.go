@@ -324,10 +324,9 @@ func (r *Request) SendJSON(code int, v interface{}) error {
 func (r *Request) Redirect(uri string, code int, args map[string]interface{}, anchor string) error {
 	var redirectURI string
 
-	// Copy original host since uri update updates in memory.
-	originalHost := string(r.RequestCtx.Request.Host())
-
-	rURI := r.RequestCtx.URI()
+	// Copy current url before mutating.
+	rURI := &fasthttp.URI{}
+	r.RequestCtx.URI().CopyTo(rURI)
 	rURI.Update(uri)
 
 	// Fill query args.
@@ -343,7 +342,7 @@ func (r *Request) Redirect(uri string, code int, args map[string]interface{}, an
 	// redirect URL's hostname are the same, and if yes,
 	// check for common scheme headers and overwrite the
 	// scheme if they are set.
-	if originalHost == string(rURI.Host()) {
+	if bytes.Equal(r.RequestCtx.Host(), rURI.Host()) {
 		s := r.RequestCtx.Request.Header.Peek("X-Forwarded-Proto")
 		if len(s) > 0 {
 			rURI.SetScheme(string(s))
