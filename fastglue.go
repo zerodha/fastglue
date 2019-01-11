@@ -324,7 +324,8 @@ func (r *Request) SendJSON(code int, v interface{}) error {
 func (r *Request) Redirect(uri string, code int, args map[string]interface{}, anchor string) error {
 	var redirectURI string
 
-	rURI := r.RequestCtx.URI()
+	rURI := &fasthttp.URI{}
+	r.RequestCtx.URI().CopyTo(rURI)
 	rURI.Update(uri)
 
 	// Fill query args.
@@ -350,7 +351,7 @@ func (r *Request) Redirect(uri string, code int, args map[string]interface{}, an
 	redirectURI = rURI.String()
 	// If anchor is sent, append to the URI.
 	if anchor != "" {
-		redirectURI = "#" + anchor
+		redirectURI += "#" + anchor
 	}
 
 	// Redirect
