@@ -62,7 +62,7 @@ func init() {
 
 	log.Println("Listening on Test Server", srvAddress)
 	go (func() {
-		log.Fatal(srv.ListenAndServe(srvAddress, sck, nil))
+		log.Fatal(srv.ListenAndServe(srvAddress, "", nil))
 	})()
 
 	time.Sleep(time.Second * 2)
@@ -213,6 +213,12 @@ func myPOSTJsonhandler(r *Request) error {
 }
 
 func TestSocketConnection(t *testing.T) {
+	log.Println("Listening on Test Server", sck)
+	go (func() {
+		log.Fatal(NewGlue().ListenAndServe("", sck, nil))
+	})()
+	time.Sleep(time.Second * 2)
+
 	c, err := net.Dial("unix", sck)
 	if err != nil {
 		t.Fatalf("Can't connect via socket %s: %v", sck, err)

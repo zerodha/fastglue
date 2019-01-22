@@ -84,8 +84,11 @@ func New() *Fastglue {
 // ListenAndServe is a wrapper for fasthttp.ListenAndServe. It takes a TCP address,
 // an optional UNIX socket file path and starts listeners, and an optional fasthttp.Server.
 func (f *Fastglue) ListenAndServe(address string, socket string, s *fasthttp.Server) error {
-	if address == "" || (address == "" && socket == "") {
-		panic("Either a TCP address with an a optional UNIX socket path are required to start the server")
+	if address == "" && socket == "" {
+		panic("specify either a TCP address or a UNIX socket")
+	}
+	if address != "" && socket != "" {
+		panic("specify either a TCP address or a UNIX socket, not both")
 	}
 
 	// No server passed, create a default one.
