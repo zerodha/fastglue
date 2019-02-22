@@ -18,8 +18,8 @@ import (
 
 var (
 	srv        = NewGlue()
-	srvAddress = ":8080"
-	srvRoot    = "http://127.0.0.1:8080"
+	srvAddress = ":10200"
+	srvRoot    = "http://127.0.0.1:10200"
 	sck        = "/tmp/fastglue-test.sock"
 )
 
@@ -59,6 +59,8 @@ func init() {
 	srv.POST("/required", ReqParams(myGEThandler, []string{"name"}))
 	srv.GET("/required_length", ReqLenParams(myGEThandler, map[string]int{"name": 5}))
 	srv.POST("/required_length", ReqLenParams(myGEThandler, map[string]int{"name": 5}))
+	srv.GET("/required_length_range", ReqLenRangeParams(myGEThandler, map[string][2]int{"name": {5, 10}}))
+	srv.POST("/required_length_range", ReqLenRangeParams(myGEThandler, map[string][2]int{"name": {5, 10}}))
 
 	log.Println("Listening on Test Server", srvAddress)
 	go (func() {
@@ -375,6 +377,55 @@ func TestRequiredParamsLen(t *testing.T) {
 	// Skip the required params.
 	resp := GETrequest(srvRoot+"/required_length?param=123&name=a", t)
 
+	if resp.StatusCode != fasthttp.StatusBadRequest {
+		t.Fatalf("Expected status %d != %d", fasthttp.StatusBadRequest, resp.StatusCode)
+	}
+
+	e, _ := decodeEnvelope(resp, t)
+	if e.Status != "error" {
+		t.Fatalf("Expected `status` field error != %s", e.Status)
+	}
+
+	if e.ErrorType == nil || *e.ErrorType != "InputException" {
+		t.Fatalf("Expected `error_type` field InputException != %s", *e.ErrorType)
+	}
+
+	// Test POST.
+	form := url.Values{}
+	form.Add("param", "123")
+	form.Add("name", "testxxx")
+
+	resp = POSTrequest(srvRoot+"/required_length", form, t)
+	if resp.StatusCode != fasthttp.StatusOK {
+		t.Fatalf("Expected status %d != %d", fasthttp.StatusOK, resp.StatusCode)
+	}
+
+	e, _ = decodeEnvelope(resp, t)
+	if e.Status != "success" {
+		t.Fatalf("Expected `status` field success != %s", e.Status)
+	}
+
+	out := "map[out:name=testxxx]"
+	if fmt.Sprintf("%v", e.Data) != out {
+		t.Fatalf("Expected `data` field %s != %v", out, e.Data)
+	}
+}
+
+func TestRequiredParamsLenRange(t *testing.T) {
+	// Skip the required params.
+	resp := GETrequest(srvRoot+"/required_length_range?param=123", t)
+	if resp.StatusCode != fasthttp.StatusBadRequest {
+		t.Fatalf("Expected status %d != %d", fasthttp.StatusBadRequest, resp.StatusCode)
+	}
+
+	// Short.
+	resp = GETrequest(srvRoot+"/required_length_range?param=123&name=a", t)
+	if resp.StatusCode != fasthttp.StatusBadRequest {
+		t.Fatalf("Expected status %d != %d", fasthttp.StatusBadRequest, resp.StatusCode)
+	}
+
+	// Too long.
+	resp = GETrequest(srvRoot+"/required_length_range?param=123&name=aaaaaaaaaaaa", t)
 	if resp.StatusCode != fasthttp.StatusBadRequest {
 		t.Fatalf("Expected status %d != %d", fasthttp.StatusBadRequest, resp.StatusCode)
 	}

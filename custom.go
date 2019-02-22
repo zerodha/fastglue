@@ -140,7 +140,34 @@ func ReqLenParams(h FastRequestHandler, fields map[string]int) FastRequestHandle
 
 		for f, ln := range fields {
 			if !args.Has(f) || len(args.Peek(f)) < ln {
-				r.SendErrorEnvelope(fasthttp.StatusBadRequest, fmt.Sprintf("Missing or invalid field `%s`. Min length is %d.", f, ln), nil, excepBadRequest)
+				r.SendErrorEnvelope(fasthttp.StatusBadRequest,
+					fmt.Sprintf("`%s` should be minimum %d characters in length.", f, ln), nil, excepBadRequest)
+
+				return nil
+			}
+		}
+
+		return h(r)
+	}
+}
+
+// ReqLenRangeParams is an (opinionated) middleware that checks if a given set of parameters are set in
+// the GET or POST params and if each of them meets a minimum and maximum length range criteria.
+// If not, it fails the request with an error envelop.
+func ReqLenRangeParams(h FastRequestHandler, fields map[string][2]int) FastRequestHandler {
+	return func(r *Request) error {
+		var args *fasthttp.Args
+
+		if r.RequestCtx.IsPost() || r.RequestCtx.IsPut() {
+			args = r.RequestCtx.PostArgs()
+		} else {
+			args = r.RequestCtx.QueryArgs()
+		}
+
+		for f, ln := range fields {
+			if !args.Has(f) || len(args.Peek(f)) < ln[0] || len(args.Peek(f)) > ln[1] {
+				r.SendErrorEnvelope(fasthttp.StatusBadRequest,
+					fmt.Sprintf("`%s` should be %d to %d in length", f, ln[0], ln[1]), nil, excepBadRequest)
 
 				return nil
 			}
