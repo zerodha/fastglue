@@ -102,12 +102,7 @@ func (f *Fastglue) ListenAndServe(address string, socket string, s *fasthttp.Ser
 	}
 
 	if socket != "" {
-		go func() {
-			err := s.ListenAndServeUNIX(socket, 0666)
-			if err != nil {
-				panic(fmt.Sprintf("Error opening socket: %v", err))
-			}
-		}()
+		return s.ListenAndServeUNIX(socket, 0666)
 	}
 
 	return s.ListenAndServe(address)
