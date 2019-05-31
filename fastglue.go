@@ -85,10 +85,10 @@ func New() *Fastglue {
 // an optional UNIX socket file path and starts listeners, and an optional fasthttp.Server.
 func (f *Fastglue) ListenAndServe(address string, socket string, s *fasthttp.Server) error {
 	if address == "" && socket == "" {
-		panic("specify either a TCP address or a UNIX socket")
+		return errors.New("specify either a TCP address or a UNIX socket")
 	}
 	if address != "" && socket != "" {
-		panic("specify either a TCP address or a UNIX socket, not both")
+		return errors.New("specify either a TCP address or a UNIX socket, not both")
 	}
 
 	// No server passed, create a default one.
