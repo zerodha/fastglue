@@ -574,7 +574,7 @@ func TestRedirectScheme(t *testing.T) {
 	// which should then timeout.
 	req.Header.Add("X-Forwarded-Proto", "https")
 	c := http.Client{
-		Timeout: time.Second * 3,
+		Timeout: time.Second * 1,
 	}
 	_, err := c.Do(req)
 	if err == nil {
