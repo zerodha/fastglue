@@ -197,6 +197,16 @@ func (f *Fastglue) HEAD(path string, h FastRequestHandler) {
 	f.Router.HEAD(path, f.handler(h))
 }
 
+// Any is fastglue's wrapper over fasthttprouter's handler
+// that attaches a FastRequestHandler to all
+// GET, POST, PUT, DELETE methods.
+func (f *Fastglue) Any(path string, h FastRequestHandler) {
+	f.Router.GET(path, f.handler(h))
+	f.Router.POST(path, f.handler(h))
+	f.Router.PUT(path, f.handler(h))
+	f.Router.DELETE(path, f.handler(h))
+}
+
 // Decode unmarshals the Post body of a fasthttp request based on the ContentType header
 // into value pointed to by v, as long as the content is JSON or XML.
 func (r *Request) Decode(v interface{}) error {

@@ -61,6 +61,7 @@ func init() {
 	srv.POST("/required_length", ReqLenParams(myGEThandler, map[string]int{"name": 5}))
 	srv.GET("/required_length_range", ReqLenRangeParams(myGEThandler, map[string][2]int{"name": {5, 10}}))
 	srv.POST("/required_length_range", ReqLenRangeParams(myGEThandler, map[string][2]int{"name": {5, 10}}))
+	srv.Any("/any", myAnyHandler)
 
 	log.Println("Listening on Test Server", srvAddress)
 	go (func() {
@@ -148,6 +149,11 @@ func myGEThandler(r *Request) error {
 	return r.SendEnvelope(struct {
 		Something string `json:"out"`
 	}{"name=" + string(r.RequestCtx.FormValue("name"))})
+}
+
+func myAnyHandler(r *Request) error {
+	// Write the incoming method name to the body.
+	return r.SendBytes(http.StatusOK, "text/plain", r.RequestCtx.Method())
 }
 
 func myRedirectHandler(r *Request) error {
@@ -578,5 +584,30 @@ func TestRedirectScheme(t *testing.T) {
 		t.Fatalf("Expected timeout error on https redirect but got: %v", err)
 	} else if !tErr.Timeout() {
 		t.Fatalf("Expected timeout error on https redirect but got: %v", err)
+	}
+}
+
+func TestAnyHandler(t *testing.T) {
+	c := http.Client{
+		Timeout: time.Second * 3,
+	}
+
+	methods := []string{"GET", "POST", "PUT", "DELETE"}
+	for _, m := range methods {
+		req, _ := http.NewRequest(m, srvRoot+"/any?param=123&name=test", nil)
+		resp, err := c.Do(req)
+		if err != nil || resp.StatusCode != http.StatusOK {
+			// The response body should be the method that was sent.
+			t.Fatalf("any (%s) request failed (status: %d): %v",
+				m, resp.StatusCode, err)
+		}
+
+		// Response body should match the method name.
+		b, _ := ioutil.ReadAll(resp.Body)
+		respMethod := strings.ToUpper(string(b))
+		if respMethod != m {
+			t.Fatalf("any handler's response doesn't match method name: %s != %v",
+				respMethod, m)
+		}
 	}
 }
