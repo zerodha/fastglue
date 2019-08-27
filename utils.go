@@ -61,7 +61,10 @@ func ScanArgs(args *fasthttp.Args, obj interface{}, fieldTag string) ([]string, 
 
 				// If it's a []byte slice (=[]uint8), assign here.
 				if f.Type().Elem().Kind() == reflect.Uint8 {
-					f.SetBytes(args.Peek(tag))
+					br := args.Peek(tag)
+					b := make([]byte, len(br))
+					copy(b, br)
+					f.SetBytes(b)
 					continue
 				}
 
