@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -609,5 +610,64 @@ func TestAnyHandler(t *testing.T) {
 			t.Fatalf("any handler's response doesn't match method name: %s != %v",
 				respMethod, m)
 		}
+	}
+}
+
+func TestScanArgs(t *testing.T) {
+	type test struct {
+		Str1            string `url:"str1"`
+		StrBlock        string `url:"-"`
+		StrNoTag        *string
+		Strings         []string `url:"str"`
+		Bytes           []byte   `url:"bytes"`
+		Int1            int      `url:"int1"`
+		Ints            []int    `url:"int"`
+		NonExistentInts []int    `url:"nonint"`
+		Bool1           bool     `url:"bool1"`
+		Bools           []bool   `url:"bool"`
+		NonExistent     []string `url:"non"`
+		BadNum          int      `url:"badnum"`
+		BadNumSlice     []int    `url:"badnumslice"`
+		OtherTag        string   `form:"otherval"`
+		OmitEmpty       string   `form:"otherval,omitempty"`
+		OtherTags       string   `url:"othertags" json:"othertags"`
+	}
+	var o test
+
+	args := fasthttp.AcquireArgs()
+	args.Add("str1", "string1")
+	args.Add("str", "str1")
+	args.Add("str", "str2")
+	args.Add("str", "str3")
+	args.Add("bytes", "manybytes")
+	args.Add("int1", "123")
+	args.Add("int", "456")
+	args.Add("int", "789")
+	args.Add("bool1", "true")
+	args.Add("bool", "true")
+	args.Add("bool", "false")
+	args.Add("bool", "f")
+	args.Add("bool", "t")
+	args.Add("badnum", "abc")
+	args.Add("badnumslice", "abc")
+	args.Add("badnumslice", "def")
+
+	ScanArgs(args, &o, "url")
+	exp := test{
+		Str1:            "string1",
+		Strings:         []string{"str1", "str2", "str3"},
+		Bytes:           []byte("manybytes"),
+		Int1:            123,
+		Ints:            []int{456, 789},
+		NonExistentInts: nil,
+		Bool1:           true,
+		Bools:           []bool{true, false, false, true},
+		BadNum:          0,
+		BadNumSlice:     []int{0, 0},
+	}
+	if !reflect.DeepEqual(exp, o) {
+		t.Error("scan structs don't match. expected != scanned")
+		fmt.Println(exp)
+		fmt.Println(o)
 	}
 }
