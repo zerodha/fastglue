@@ -108,6 +108,56 @@ func (f *Fastglue) ListenAndServe(address string, socket string, s *fasthttp.Ser
 	return s.ListenAndServe(address)
 }
 
+// ListenServeAndWaitGracefully accepts the same parameters
+// as ListenAndServe along with a channel which can receive
+// a signal to shutdown the server.
+func (f *Fastglue) ListenServeAndWaitGracefully(address string, socket string, s *fasthttp.Server, shutdownServer chan struct{}) error {
+	errChan := make(chan error, 1)
+	// Listen for signal on shutdownServer channel
+	go func() {
+		for range shutdownServer {
+			errChan <- s.Shutdown()
+		}
+	}()
+	// Start the http server
+	go func() {
+		err := f.ListenAndServe(address, socket, s)
+		if err != nil {
+			// Only if the err was nil, we want to send to the errChan
+			// else we will keep waiting for shutdownServer to
+			// send an error complete.
+			errChan <- err
+		}
+	}()
+
+	// Wait for an error/nil, till then keep running.
+	for err := range errChan {
+		close(shutdownServer)
+		return err
+	}
+
+	return nil
+}
+
+// Shutdown gracefully shuts down the server without interrupting any active connections.
+// It accepts a fasthttp.Server instance along with an error channel, to which it
+// sends a signal with a nil/error after shutdown is complete. It is safe to exit
+// the program after receiving this signal.
+//
+// The following is taken from the fasthttp docs and applies to fastglue shutdown.
+// Shutdown works by first closing all open listeners and then waiting indefinitely for
+// all connections to return to idle and then shut down.
+//
+// When Shutdown is called, Serve, ListenAndServe, and ListenAndServeTLS
+// immediately return nil.
+// Make sure the program doesn't exit and waits instead for Shutdown to return.
+//
+// Shutdown does not close keepalive connections so its recommended
+// to set ReadTimeout to something else than 0.
+func (f *Fastglue) Shutdown(s *fasthttp.Server, shutdownComplete chan error) {
+	shutdownComplete <- f.Server.Shutdown()
+}
+
 // hanlder is the "proxy" abstraction that converts a fastglue handler into
 // a fasthttp handler and passes execution in and out.
 func (f *Fastglue) handler(h FastRequestHandler) func(*fasthttp.RequestCtx) {
