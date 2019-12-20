@@ -31,10 +31,10 @@ type App struct {
 }
 
 type Person struct {
-	Name    *string `json:"name" required:"true" schema:"name,required"`
-	Age     *int    `json:"age" schema:"age,required" required:"true"`
-	Comment string  `json:"comment"`
-	Version string  `json:"version"`
+	Name    string `json:"name"`
+	Age     int    `json:"age"`
+	Comment string `json:"comment"`
+	Version string `json:"version"`
 }
 
 type PersonEnvelope struct {
@@ -173,15 +173,14 @@ func myRedirectExternalHandler(r *Request) error {
 
 func myPOSThandler(r *Request) error {
 	var p Person
-	if err := r.DecodeFail(&p); err != nil {
+	if err := r.DecodeFail(&p, "json"); err != nil {
 		return err
 	}
 
-	if *(p.Age) < 18 {
+	if p.Age < 18 {
 		r.SendErrorEnvelope(fasthttp.StatusBadRequest, "We only accept Persons above 18", struct {
 			Random string `json:"random"`
 		}{"Some random error payload"}, "InputException")
-
 		return nil
 	}
 
@@ -201,11 +200,11 @@ func myRawJSONhandler(r *Request) error {
 
 func myPOSTJsonhandler(r *Request) error {
 	var p Person
-	if err := r.DecodeFail(&p); err != nil {
+	if err := r.DecodeFail(&p, "json"); err != nil {
 		return err
 	}
 
-	if *(p.Age) < 18 {
+	if p.Age < 18 {
 		r.SendErrorEnvelope(fasthttp.StatusBadRequest, "We only accept Persons above 18", struct {
 			Random string `json:"random"`
 		}{"Some random error payload"}, "InputException")
@@ -503,7 +502,7 @@ func TestPOSTJsonRequest(t *testing.T) {
 		t.Fatalf("Couldn't unmarshal JSON response: %v = %s", err, b)
 	}
 
-	if *pe.Person.Age != 30 || pe.Person.Version != "xxx" || len(pe.Person.Comment) < 1 {
+	if pe.Person.Age != 30 || pe.Person.Version != "xxx" || len(pe.Person.Comment) < 1 {
 		t.Fatalf("Unexpected enveloped response: (age: 30, version: xxx) != %s", b)
 	}
 }
@@ -530,12 +529,13 @@ func TestValidationJsonRequest(t *testing.T) {
 func TestPOSTFormRequest(t *testing.T) {
 	form := url.Values{}
 	form.Add("name", "test")
+	form.Add("age", "6")
 
 	resp := POSTrequest(srvRoot+"/post?param=123", form, t)
 	b, _ := ioutil.ReadAll(resp.Body)
 	// This should fail with error message `age is empty`.
 	if resp.StatusCode != fasthttp.StatusBadRequest {
-		t.Fatalf("Expected status %d != %d: %s", fasthttp.StatusOK, resp.StatusCode, b)
+		t.Fatalf("Expected status %d != %d: %s", fasthttp.StatusBadRequest, resp.StatusCode, b)
 	}
 
 	var e Envelope
@@ -543,7 +543,6 @@ func TestPOSTFormRequest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't unmarshal JSON response: %v = %s", err, b)
 	}
-
 }
 
 func TestRedirectRequest(t *testing.T) {

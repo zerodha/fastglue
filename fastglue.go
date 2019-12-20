@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	"github.com/buaazp/fasthttprouter"
-	"github.com/gorilla/schema"
 	"github.com/valyala/fasthttp"
 )
 
@@ -38,9 +37,6 @@ var (
 	// Authorization schemes.
 	authBasic = []byte("Basic")
 	authToken = []byte("token")
-
-	// Decoder for standard POST Form data decoding.
-	decoder *schema.Decoder
 )
 
 // FastRequestHandler is the fastglue HTTP request handler function
@@ -67,11 +63,6 @@ type Fastglue struct {
 
 	before []FastMiddleware
 	after  []FastMiddleware
-}
-
-func init() {
-	// Initialise the decoder.
-	decoder = schema.NewDecoder()
 }
 
 // New creates and returns a new instance of Fastglue.
@@ -209,7 +200,7 @@ func (f *Fastglue) Any(path string, h FastRequestHandler) {
 
 // Decode unmarshals the Post body of a fasthttp request based on the ContentType header
 // into value pointed to by v, as long as the content is JSON or XML.
-func (r *Request) Decode(v interface{}) error {
+func (r *Request) Decode(v interface{}, tag string) error {
 	var (
 		err error
 		ct  = r.RequestCtx.Request.Header.ContentType()
@@ -221,7 +212,7 @@ func (r *Request) Decode(v interface{}) error {
 		value := reflect.ValueOf(v).Elem()
 		for i := 0; i < value.NumField(); i++ {
 			tag := value.Type().Field(i).Tag.Get("required")
-			jTagName := strings.Split(value.Type().Field(i).Tag.Get("json"), ",")[0]
+			jTagName := strings.Split(value.Type().Field(i).Tag.Get(tag), ",")[0]
 			if jTagName == "" {
 				jTagName = value.Type().Field(i).Name
 			}
@@ -257,13 +248,7 @@ func (r *Request) Decode(v interface{}) error {
 	} else if bytes.Contains(ct, constXML) {
 		err = xml.Unmarshal(r.RequestCtx.PostBody(), &v)
 	} else {
-		// Try Regular POST FORM decoding if JSON/XML headers aren't set.
-		// Add schema:"<schema name>,required" struct tag to the struct to be unmarshalled into.
-
-		//Make a Map of POST Form Data.
-		postDataMap := makeMapFromArgs(r.RequestCtx.PostArgs())
-		// Decode map into our interface.
-		err = decoder.Decode(v, postDataMap)
+		ScanArgs(r.RequestCtx.PostArgs(), v, tag)
 	}
 
 	if err != nil {

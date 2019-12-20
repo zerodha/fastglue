@@ -41,9 +41,10 @@ func NewGlue() *Fastglue {
 // DecodeFail uses Decode() to unmarshal the Post body, but in addition to returning
 // an error on failure, writes the error to the HTTP response directly. This helps
 // avoid repeating read/parse/validate boilerplate inside every single HTTP handler.
-func (r *Request) DecodeFail(v interface{}) error {
-	if err := r.Decode(v); err != nil {
-		r.SendErrorEnvelope(fasthttp.StatusBadRequest, "Invalid POST body: `"+err.Error()+"`", nil, excepBadRequest)
+func (r *Request) DecodeFail(v interface{}, tag string) error {
+	if err := r.Decode(v, tag); err != nil {
+		r.SendErrorEnvelope(fasthttp.StatusBadRequest,
+			"Error unmarshalling request: `"+err.Error()+"`", nil, excepBadRequest)
 
 		return err
 	}
