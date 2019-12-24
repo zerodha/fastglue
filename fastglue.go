@@ -7,8 +7,6 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
-	"reflect"
-	"strings"
 
 	"github.com/buaazp/fasthttprouter"
 	"github.com/valyala/fasthttp"
@@ -209,52 +207,14 @@ func (r *Request) Decode(v interface{}, tag string) error {
 	// Validate compulsory fields in JSON body. The struct to be unmarshaled into needs a struct tag with required=true for enforcing presence.
 	if bytes.Contains(ct, constJSON) {
 		err = json.Unmarshal(r.RequestCtx.PostBody(), &v)
-		value := reflect.ValueOf(v).Elem()
-		for i := 0; i < value.NumField(); i++ {
-			tag := value.Type().Field(i).Tag.Get("required")
-			jTagName := strings.Split(value.Type().Field(i).Tag.Get(tag), ",")[0]
-			if jTagName == "" {
-				jTagName = value.Type().Field(i).Name
-			}
-			vv := value.Field(i)
-			if tag == "true" {
-
-				if vv.Kind() == reflect.Ptr && vv.IsNil() {
-					return errors.New(jTagName + " is invalid.")
-				}
-			}
-
-			if tag == "nonzero" {
-				switch vv.Kind() {
-				case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-					if vv.Int() == 0 {
-						return errors.New(jTagName + " can't be zero.")
-					}
-				case reflect.Float32, reflect.Float64:
-					if vv.Float() == 0 {
-						return errors.New(jTagName + " can't be zero.")
-					}
-				case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-					if vv.Uint() == 0 {
-						return errors.New(jTagName + " can't be zero.")
-					}
-				case reflect.String:
-					if vv.String() == "" {
-						return errors.New(jTagName + " can't be empty.")
-					}
-				}
-			}
-		}
 	} else if bytes.Contains(ct, constXML) {
 		err = xml.Unmarshal(r.RequestCtx.PostBody(), &v)
 	} else {
 		ScanArgs(r.RequestCtx.PostArgs(), v, tag)
 	}
-
 	if err != nil {
-		return errors.New("Error decoding: " + err.Error())
+		return fmt.Errorf("error decoding request: %v", err)
 	}
-
 	return nil
 }
 
