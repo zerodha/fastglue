@@ -63,6 +63,8 @@ func init() {
 	srv.GET("/required_length_range", ReqLenRangeParams(myGEThandler, map[string][2]int{"name": {5, 10}}))
 	srv.POST("/required_length_range", ReqLenRangeParams(myGEThandler, map[string][2]int{"name": {5, 10}}))
 	srv.Any("/any", myAnyHandler)
+	srv.ServeStatic("/dir-examples/*filepath", "./examples", true)
+	srv.ServeStatic("/no-dir-examples/*filepath", "./examples", false)
 
 	log.Println("Listening on Test Server", srvAddress)
 	go (func() {
@@ -668,5 +670,43 @@ func TestScanArgs(t *testing.T) {
 		t.Error("scan structs don't match. expected != scanned")
 		fmt.Println(exp)
 		fmt.Println(o)
+	}
+}
+
+func TestServeStatic(t *testing.T) {
+	// Get file from non-directory listed path.
+	resp := GETrequest(srvRoot+"/no-dir-examples/example.go", t)
+	if resp.StatusCode != fasthttp.StatusOK {
+		t.Fatalf("Expected status %d != %d", fasthttp.StatusOK, resp.StatusCode)
+	}
+
+	// Get directory from non-directory listed path.
+	resp = GETrequest(srvRoot+"/no-dir-examples/", t)
+	if resp.StatusCode != fasthttp.StatusForbidden {
+		t.Fatalf("Expected status %d != %d", fasthttp.StatusForbidden, resp.StatusCode)
+	}
+
+	// Get not found file from non-directory listed path.
+	resp = GETrequest(srvRoot+"/no-dir-examples/filenotfound", t)
+	if resp.StatusCode != fasthttp.StatusNotFound {
+		t.Fatalf("Expected status %d != %d", fasthttp.StatusNotFound, resp.StatusCode)
+	}
+
+	// Get file from directory listed path.
+	resp = GETrequest(srvRoot+"/dir-examples/example.go", t)
+	if resp.StatusCode != fasthttp.StatusOK {
+		t.Fatalf("Expected status %d != %d", fasthttp.StatusOK, resp.StatusCode)
+	}
+
+	// Get directory from directory listed path.
+	resp = GETrequest(srvRoot+"/dir-examples/", t)
+	if resp.StatusCode != fasthttp.StatusOK {
+		t.Fatalf("Expected status %d != %d", fasthttp.StatusOK, resp.StatusCode)
+	}
+
+	// Get not found file from directory listed path.
+	resp = GETrequest(srvRoot+"/dir-examples/filenotfound", t)
+	if resp.StatusCode != fasthttp.StatusNotFound {
+		t.Fatalf("Expected status %d != %d", fasthttp.StatusNotFound, resp.StatusCode)
 	}
 }
