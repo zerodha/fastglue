@@ -13,9 +13,7 @@ import (
 // MockServer is a mock HTTP server. It uses an httptest.Server mock server
 // that can take an HTTP request and respond with a mock response.
 type MockServer struct {
-	Server *httptest.Server
-	assert *assert.Assertions
-
+	Server  *httptest.Server
 	handles map[string]MockResponse
 }
 
@@ -37,10 +35,9 @@ type MockRequest struct {
 
 // NewMockServer initializes a mock HTTP server against which any request be sent,
 // and the request can be responded to with a mock response.
-func NewMockServer(t *testing.T) *MockServer {
+func NewMockServer() *MockServer {
 	m := &MockServer{
 		handles: make(map[string]MockResponse),
-		assert:  assert.New(t),
 	}
 	s := httptest.NewServer(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -82,7 +79,9 @@ func NewMockServer(t *testing.T) *MockServer {
 func (m *MockServer) Handle(method, uri string, r MockResponse) {
 	key := method + uri
 	_, ok := m.handles[key]
-	m.assert.False(ok, fmt.Sprintf("handle already registered: %v:%v", method, uri))
+	if ok {
+		panic(fmt.Sprintf("handle already registered: %v:%v", method, uri))
+	}
 
 	m.handles[key] = r
 	m.handles[uri] = r

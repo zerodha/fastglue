@@ -9,7 +9,7 @@ import (
 )
 
 func TestMockServer(t *testing.T) {
-	m := NewMockServer(t)
+	m := NewMockServer()
 
 	// Register mock upstream handlers.
 	m.Handle(fasthttp.MethodGet, "/test", MockResponse{Body: []byte("hello world")})
