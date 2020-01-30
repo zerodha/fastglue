@@ -5,6 +5,7 @@ require (
 	github.com/gorilla/schema v1.1.0
 	github.com/klauspost/compress v1.6.1 // indirect
 	github.com/klauspost/cpuid v1.2.1 // indirect
+	github.com/stretchr/testify v1.4.0
 	github.com/valyala/fasthttp v1.3.0
 	golang.org/x/crypto v0.0.0-20190530122614-20be4c3c3ed5 // indirect
 	golang.org/x/net v0.0.0-20190603091049-60506f45cf65 // indirect
