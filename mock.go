@@ -164,12 +164,13 @@ func (r *MockRequest) Do(h FastRequestHandler, req *Request) *Request {
 			"status code doesn't match")
 	}
 	if len(r.assertBody) > 0 {
-		r.assert.Equal(r.assertBody, req.RequestCtx.Response.Body(),
-			"response body doesnt match")
-	}
-	if r.assertJSON {
-		r.assert.JSONEq(string(r.assertBody), string(req.RequestCtx.Response.Body()),
-			"JSON response doesnt match")
+		if r.assertJSON {
+			r.assert.JSONEq(string(r.assertBody), string(req.RequestCtx.Response.Body()),
+				"JSON response doesnt match")
+		} else {
+			r.assert.Equal(r.assertBody, req.RequestCtx.Response.Body(),
+				"response body doesnt match")
+		}
 	}
 
 	return req
