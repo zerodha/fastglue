@@ -682,8 +682,8 @@ func TestServeStatic(t *testing.T) {
 
 	// Get directory from non-directory listed path.
 	resp = GETrequest(srvRoot+"/no-dir-examples/", t)
-	if resp.StatusCode != fasthttp.StatusForbidden {
-		t.Fatalf("Expected status %d != %d", fasthttp.StatusForbidden, resp.StatusCode)
+	if resp.StatusCode != fasthttp.StatusOK {
+		t.Fatalf("Expected status %d != %d", fasthttp.StatusOK, resp.StatusCode)
 	}
 
 	// Get not found file from non-directory listed path.
