@@ -15,7 +15,7 @@ func TestMockServer(t *testing.T) {
 	m.Handle(fasthttp.MethodGet, "/test", MockResponse{Body: []byte("hello world")})
 	m.Handle(fasthttp.MethodGet, "/test2", MockResponse{
 		StatusCode: fasthttp.StatusInternalServerError,
-		Body:       []byte("ouch")})
+		Body:       []byte("{\"data\": \"ouch\"}")})
 
 	// Create a fake request context and use it with the real handler.
 	req := m.NewFastglueReq()
@@ -27,7 +27,7 @@ func TestMockServer(t *testing.T) {
 	req = m.NewFastglueReq()
 	req.RequestCtx.SetUserValue("mock_url", m.URL()+"/test2")
 	m.NewReq(t).AssertStatus(fasthttp.StatusInternalServerError).
-		AssertBody([]byte("ouch")).
+		AssertJSON([]byte("{\"data\": \"ouch\"}")).
 		Do(handleMockRequest, req)
 }
 
