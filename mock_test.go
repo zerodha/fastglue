@@ -29,7 +29,7 @@ func TestMockServer(t *testing.T) {
 
 	mr = m.Do(handleMockRequest, req, t)
 	mr.AssertStatus(fasthttp.StatusInternalServerError)
-	mr.AssertJSON([]byte("{\"data\": \"ouch\"}"))
+	mr.AssertJSON([]byte("{    \"data\": \"ouch\"     }"))
 }
 
 // handleMockRequest is a dummy HTTP handler that sends a request
