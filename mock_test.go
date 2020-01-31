@@ -20,15 +20,16 @@ func TestMockServer(t *testing.T) {
 	// Create a fake request context and use it with the real handler.
 	req := m.NewFastglueReq()
 	req.RequestCtx.SetUserValue("mock_url", m.URL()+"/test")
-	m.NewReq(t).AssertStatus(fasthttp.StatusOK).
-		AssertBody([]byte("hello world")).
-		Do(handleMockRequest, req)
+	mr := m.Do(handleMockRequest, req, t)
+	mr.AssertStatus(fasthttp.StatusOK)
+	mr.AssertBody([]byte("hello world"))
 
 	req = m.NewFastglueReq()
 	req.RequestCtx.SetUserValue("mock_url", m.URL()+"/test2")
-	m.NewReq(t).AssertStatus(fasthttp.StatusInternalServerError).
-		AssertJSON([]byte("{\"data\": \"ouch\"}")).
-		Do(handleMockRequest, req)
+
+	mr = m.Do(handleMockRequest, req, t)
+	mr.AssertStatus(fasthttp.StatusInternalServerError)
+	mr.AssertJSON([]byte("{\"data\": \"ouch\"}"))
 }
 
 // handleMockRequest is a dummy HTTP handler that sends a request
