@@ -55,13 +55,13 @@ type Request struct {
 
 // Fastglue is the "glue" wrapper over fasthttp and fasthttprouter.
 type Fastglue struct {
-	Router      *fasthttprouter.Router
-	Server      *fasthttp.Server
-	context     interface{}
-	contentType string
-
-	before []FastMiddleware
-	after  []FastMiddleware
+	Router                *fasthttprouter.Router
+	Server                *fasthttp.Server
+	context               interface{}
+	contentType           string
+	MatchedRoutePathParam string
+	before                []FastMiddleware
+	after                 []FastMiddleware
 }
 
 // New creates and returns a new instance of Fastglue.
