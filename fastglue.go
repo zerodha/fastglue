@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/buaazp/fasthttprouter"
+	fasthttprouter "github.com/fasthttp/router"
 	"github.com/valyala/fasthttp"
 )
 

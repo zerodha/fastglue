@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	fasthttprouter "github.com/fasthttp/router"
 	"github.com/valyala/fasthttp"
 )
 
