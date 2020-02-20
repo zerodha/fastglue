@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	fasthttprouter "github.com/fasthttp/router"
 	"github.com/valyala/fasthttp"
 )
 
@@ -34,7 +35,8 @@ func NewGlue() *Fastglue {
 	f := New()
 	f.Router.MethodNotAllowed = BadMethodHandler
 	f.Router.NotFound = NotFoundHandler
-
+	f.Router.SaveMatchedRoutePath = true
+	f.MatchedRoutePathParam = fasthttprouter.MatchedRoutePathParam
 	return f
 }
 
