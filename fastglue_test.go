@@ -6,14 +6,20 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math/rand"
 	"net"
 	"net/http"
 	"net/url"
+	"os"
+	"os/signal"
 	"reflect"
 	"strings"
+	"sync"
+	"syscall"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
 	"github.com/valyala/fasthttp"
 )
 
@@ -709,4 +715,42 @@ func TestServeStatic(t *testing.T) {
 	if resp.StatusCode != fasthttp.StatusNotFound {
 		t.Fatalf("Expected status %d != %d", fasthttp.StatusNotFound, resp.StatusCode)
 	}
+}
+
+func TestGrace(t *testing.T) {
+	s := fasthttp.Server{}
+
+	ch := make(chan struct{})
+
+	sig := make(chan os.Signal)
+	signal.Notify(sig, os.Interrupt)
+	g := New()
+	go func() {
+
+		if err := g.ListenServeAndWaitGracefully(":8080", "", &s, ch); err != nil {
+			t.Log(err.Error())
+		}
+	}()
+	var wg sync.WaitGroup
+	for i := 0; i < 10; i++ {
+		go func() {
+			wg.Add(1)
+			_, err := http.Get("http://localhost:8080")
+			require.NoError(t, err)
+			wg.Done()
+		}()
+	}
+	go func() {
+		s := <-sig
+		fmt.Println(s.String(), " signal received")
+		ch <- struct{}{}
+	}()
+	go func() {
+		rand.Seed(time.Now().UnixNano())
+		n := rand.Intn(10) // n will be between 0 and 10
+		fmt.Printf("Sleeping %d seconds...\n", n)
+		time.Sleep(time.Duration(n+1) * time.Second)
+		sig <- syscall.SIGINT
+	}()
+	wg.Wait()
 }
