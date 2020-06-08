@@ -46,7 +46,7 @@ func checkToken(r *fastglue.Request) *fastglue.Request {
 
 func myPOSThandler(r *fastglue.Request) error {
 	var p Person
-	if err := r.DecodeFail(&p); err != nil {
+	if err := r.DecodeFail(&p, "json"); err != nil {
 		return err
 	}
 
