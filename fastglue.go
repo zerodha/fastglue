@@ -7,7 +7,6 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
-	"strings"
 
 	fasthttprouter "github.com/fasthttp/router"
 	"github.com/valyala/fasthttp"
@@ -247,25 +246,13 @@ func (f *Fastglue) Any(path string, h FastRequestHandler) {
 	f.Router.DELETE(path, f.handler(h))
 }
 
-// ServeStatic serves static files under `rootPath` on `path` urls. For example
-// if path is `/static/sample.txt` then it will serve file under `rootPath/static/sample.txt`.
-// Path can be wilecard urls like `/static/*.css`.
+// ServeStatic serves static files under `rootPath` on `path` urls.
+// The `path` must end with "/{filepath:*}", files are then served from the local
+// path /defined/root/dir/{filepath:*}. For example `path` can be
+// "/static/{filepath:*}" and `rootPath` as "./dist/static/" to serve all the
+// files "./dist/static/*" as "/static/*".
 // `listDirectory` option enables or disables directory listing.
 func (f *Fastglue) ServeStatic(path string, rootPath string, listDirectory bool) {
-	if len(path) < 10 || path[len(path)-10:] != "/*filepath" {
-		panic("path must end with /*filepath in path '" + path + "'")
-	}
-
-	prefix := path[:len(path)-10]
-
-	// `stripSlashes` indicates how many leading slashes must be stripped
-	// from requested path before searching requested file in the root folder.
-	// Examples:
-	//   * stripSlashes = 0, original path: "/foo/bar", result: "/foo/bar"
-	//   * stripSlashes = 1, original path: "/foo/bar", result: "/bar"
-	//   * stripSlashes = 2, original path: "/foo/bar", result: ""
-	stripSlashes := strings.Count(prefix, "/")
-
 	// Create a request handler serving static files from the given `rootPath` folder.
 	// The request handler created automatically generates index pages
 	// for directories without index.html.
@@ -283,13 +270,7 @@ func (f *Fastglue) ServeStatic(path string, rootPath string, listDirectory bool)
 		GenerateIndexPages: listDirectory,
 		AcceptByteRange:    true,
 	}
-	if stripSlashes > 0 {
-		fs.PathRewrite = fasthttp.NewPathSlashesStripper(stripSlashes)
-	}
-
-	f.Router.GET(path, func(ctx *fasthttp.RequestCtx) {
-		fs.NewRequestHandler()(ctx)
-	})
+	f.Router.ServeFilesCustom(path, fs)
 }
 
 // Decode unmarshals the Post body of a fasthttp request based on the ContentType header

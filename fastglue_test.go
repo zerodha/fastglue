@@ -69,8 +69,8 @@ func init() {
 	srv.GET("/required_length_range", ReqLenRangeParams(myGEThandler, map[string][2]int{"name": {5, 10}}))
 	srv.POST("/required_length_range", ReqLenRangeParams(myGEThandler, map[string][2]int{"name": {5, 10}}))
 	srv.Any("/any", myAnyHandler)
-	srv.ServeStatic("/dir-examples/*filepath", "./examples", true)
-	srv.ServeStatic("/no-dir-examples/*filepath", "./examples", false)
+	srv.ServeStatic("/dir-examples/{filepath:*}", "./examples", true)
+	srv.ServeStatic("/no-dir-examples/{filepath:*}", "./examples", false)
 
 	log.Println("Listening on Test Server", srvAddress)
 	go (func() {
