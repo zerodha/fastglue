@@ -655,11 +655,12 @@ func TestScanArgs(t *testing.T) {
 	args.Add("bool", "false")
 	args.Add("bool", "f")
 	args.Add("bool", "t")
-	args.Add("badnum", "abc")
-	args.Add("badnumslice", "abc")
-	args.Add("badnumslice", "def")
 
-	ScanArgs(args, &o, "url")
+	_, err := ScanArgs(args, &o, "url")
+	if err != nil {
+		t.Fatalf("Got unexpected error: %v", err)
+	}
+
 	exp := test{
 		Str1:            "string1",
 		Strings:         []string{"str1", "str2", "str3"},
@@ -670,12 +671,32 @@ func TestScanArgs(t *testing.T) {
 		Bool1:           true,
 		Bools:           []bool{true, false, false, true},
 		BadNum:          0,
-		BadNumSlice:     []int{0, 0},
+		BadNumSlice:     nil,
 	}
 	if !reflect.DeepEqual(exp, o) {
 		t.Error("scan structs don't match. expected != scanned")
-		fmt.Println(exp)
-		fmt.Println(o)
+		fmt.Printf("%#v", exp)
+		fmt.Printf("%#v", o)
+	}
+
+	args.Add("badnum", "abc")
+	expected := "Failed to decode `badnum`, got: `abc` (expected int)"
+	_, err = ScanArgs(args, &o, "url")
+	if err == nil {
+		t.Fatal("Expected err, got nil")
+	}
+	if err.Error() != expected {
+		t.Fatalf("Expected `%s`, got: %v", expected, err.Error())
+	}
+
+	args.Del("badnum")
+
+	args.Add("badnumslice", "abc")
+	args.Add("badnumslice", "def")
+	_, err = ScanArgs(args, &o, "url")
+	expected = "Failed to decode `badnumslice`, got: `abc` (expected int)"
+	if err.Error() != expected {
+		t.Fatalf("Expected `%s`, got: %v", expected, err.Error())
 	}
 }
 
