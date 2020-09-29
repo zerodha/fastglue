@@ -27,7 +27,7 @@ func ScanArgs(args *fasthttp.Args, obj interface{}, fieldTag string) ([]string, 
 	}
 
 	if ob.Kind() != reflect.Struct {
-		return nil, fmt.Errorf("Failed to encode form values to struct. Non struct type: %T", ob)
+		return nil, fmt.Errorf("failed to decode form values to struct, received non struct type: %T", ob)
 	}
 
 	// Go through every field in the struct and look for it in the Args map.
@@ -48,7 +48,10 @@ func ScanArgs(args *fasthttp.Args, obj interface{}, fieldTag string) ([]string, 
 				continue
 			}
 
-			scanned := false
+			var (
+				scanned bool
+				err     error
+			)
 			// The struct field is a slice type.
 			if f.Kind() == reflect.Slice {
 				var (
@@ -71,11 +74,18 @@ func ScanArgs(args *fasthttp.Args, obj interface{}, fieldTag string) ([]string, 
 				// Iterate through fasthttp's multiple args and assign values
 				// to each item in the slice.
 				for i, v := range vals {
-					scanned = setVal(sl.Index(i), string(v))
+					scanned, err = setVal(sl.Index(i), string(v))
+					if err != nil {
+						return nil, fmt.Errorf("failed to decode `%v`, got: `%s` (%v)", tag, v, err)
+					}
 				}
 				f.Set(sl)
 			} else {
-				scanned = setVal(f, string(args.Peek(tag)))
+				v := string(args.Peek(tag))
+				scanned, err = setVal(f, v)
+				if err != nil {
+					return nil, fmt.Errorf("failed to decode `%v`, got: `%s` (%v)", tag, v, err)
+				}
 			}
 
 			if scanned {
@@ -86,27 +96,36 @@ func ScanArgs(args *fasthttp.Args, obj interface{}, fieldTag string) ([]string, 
 	return fields, nil
 }
 
-func setVal(f reflect.Value, val string) bool {
+func setVal(f reflect.Value, val string) (bool, error) {
 	switch f.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		if v, err := strconv.ParseInt(val, 10, 0); err == nil {
-			f.SetInt(v)
+		v, err := strconv.ParseInt(val, 10, 0)
+		if err != nil {
+			return false, fmt.Errorf("expected int")
 		}
+		f.SetInt(v)
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		if v, err := strconv.ParseUint(val, 10, 0); err == nil {
-			f.SetUint(v)
+		v, err := strconv.ParseUint(val, 10, 0)
+		if err != nil {
+			return false, fmt.Errorf("expected unsigned int")
 		}
+		f.SetUint(v)
 	case reflect.Float32, reflect.Float64:
-		if v, err := strconv.ParseFloat(val, 0); err == nil {
-			f.SetFloat(v)
+		v, err := strconv.ParseFloat(val, 0)
+		if err != nil {
+			return false, fmt.Errorf("expected decimal")
 		}
+		f.SetFloat(v)
 	case reflect.String:
 		f.SetString(val)
 	case reflect.Bool:
-		b, _ := strconv.ParseBool(val)
+		b, err := strconv.ParseBool(val)
+		if err != nil {
+			return false, fmt.Errorf("expected boolean")
+		}
 		f.SetBool(b)
 	default:
-		return false
+		return false, nil
 	}
-	return true
+	return true, nil
 }

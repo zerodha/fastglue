@@ -287,7 +287,7 @@ func (r *Request) Decode(v interface{}, tag string) error {
 	} else if bytes.Contains(ct, constXML) {
 		err = xml.Unmarshal(r.RequestCtx.PostBody(), &v)
 	} else {
-		ScanArgs(r.RequestCtx.PostArgs(), v, tag)
+		_, err = ScanArgs(r.RequestCtx.PostArgs(), v, tag)
 	}
 	if err != nil {
 		return fmt.Errorf("error decoding request: %v", err)
