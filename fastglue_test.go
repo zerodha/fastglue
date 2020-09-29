@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"math/rand"
 	"net"
 	"net/http"
 	"net/url"
@@ -15,7 +14,6 @@ import (
 	"reflect"
 	"strings"
 	"sync"
-	"syscall"
 	"testing"
 	"time"
 
@@ -77,7 +75,7 @@ func init() {
 		log.Fatal(srv.ListenAndServe(srvAddress, "", nil))
 	})()
 
-	time.Sleep(time.Second * 2)
+	time.Sleep(time.Second * 1)
 }
 
 func GETrequest(url string, t *testing.T) *http.Response {
@@ -233,7 +231,7 @@ func TestSocketConnection(t *testing.T) {
 	go (func() {
 		log.Fatal(NewGlue().ListenAndServe("", sck, nil))
 	})()
-	time.Sleep(time.Second * 2)
+	time.Sleep(time.Second * 1)
 
 	c, err := net.Dial("unix", sck)
 	if err != nil {
@@ -746,32 +744,29 @@ func TestGrace(t *testing.T) {
 	sig := make(chan os.Signal)
 	signal.Notify(sig, os.Interrupt)
 	g := New()
-	go func() {
+	g.GET("/", func(r *Request) error {
+		time.Sleep(1 * time.Second)
 
-		if err := g.ListenServeAndWaitGracefully(":8080", "", &s, ch); err != nil {
+		return r.SendEnvelope(true)
+	})
+	go func() {
+		if err := g.ListenServeAndWaitGracefully(":10201", "", &s, ch); err != nil {
 			t.Log(err.Error())
 		}
 	}()
+	time.Sleep(1 * time.Second)
 	var wg sync.WaitGroup
 	for i := 0; i < 10; i++ {
+		wg.Add(1)
 		go func() {
-			wg.Add(1)
-			_, err := http.Get("http://localhost:8080")
+			resp, err := http.Get("http://localhost:10201/")
+			require.Equal(t, 200, resp.StatusCode)
 			require.NoError(t, err)
 			wg.Done()
 		}()
 	}
-	go func() {
-		s := <-sig
-		fmt.Println(s.String(), " signal received")
-		ch <- struct{}{}
-	}()
-	go func() {
-		rand.Seed(time.Now().UnixNano())
-		n := rand.Intn(10) // n will be between 0 and 10
-		fmt.Printf("Sleeping %d seconds...\n", n)
-		time.Sleep(time.Duration(n+1) * time.Second)
-		sig <- syscall.SIGINT
-	}()
+
+	time.Sleep(50 * time.Millisecond)
+	ch <- struct{}{}
 	wg.Wait()
 }
