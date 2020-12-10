@@ -170,13 +170,6 @@ func myRedirectHandler(r *Request) error {
 	}, "")
 }
 
-func myRedirectExternalHandler(r *Request) error {
-	return r.Redirect("http://localhost:12345/redirect", fasthttp.StatusFound, map[string]interface{}{
-		"name":  "Redirected" + string(r.RequestCtx.FormValue("name")),
-		"param": "123",
-	}, "")
-}
-
 func myPOSThandler(r *Request) error {
 	var p Person
 	if err := r.DecodeFail(&p, "json"); err != nil {
@@ -250,6 +243,9 @@ func Test404Response(t *testing.T) {
 	// JSON envelope body.
 	var e Envelope
 	b, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("Couldn't read body: %v: %s", err, b)
+	}
 	err = json.Unmarshal(b, &e)
 	if err != nil {
 		t.Fatalf("Couldn't unmarshal envelope: %v: %s", err, b)

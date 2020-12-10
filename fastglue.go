@@ -57,7 +57,6 @@ type Fastglue struct {
 	Router                *fasthttprouter.Router
 	Server                *fasthttp.Server
 	context               interface{}
-	contentType           string
 	MatchedRoutePathParam string
 	before                []FastMiddleware
 	after                 []FastMiddleware
@@ -163,7 +162,7 @@ func (f *Fastglue) handler(h FastRequestHandler) func(*fasthttp.RequestCtx) {
 			}
 		}
 
-		h(req)
+		_ = h(req)
 
 		// Apply "after" middleware.
 		for _, p := range f.after {
@@ -178,7 +177,6 @@ func (f *Fastglue) handler(h FastRequestHandler) func(*fasthttp.RequestCtx) {
 // Handler returns fastglue's central fasthttp handler that can be registered
 // to a fasthttp server instance.
 func (f *Fastglue) Handler() func(*fasthttp.RequestCtx) {
-	// return fasthttp.TimeoutHandler(f.Router.Handler, f.Server.WriteTimeout, "Request timed out")
 	return f.Router.Handler
 }
 
@@ -193,17 +191,13 @@ func (f *Fastglue) SetContext(c interface{}) {
 // is handed over to the registered handler. This is useful for doing "global"
 // checks, for instance, session and cookies.
 func (f *Fastglue) Before(fm ...FastMiddleware) {
-	for _, h := range fm {
-		f.before = append(f.before, h)
-	}
+	f.before = append(f.before, fm...)
 }
 
 // After registers a fastglue middleware that's executed after a registered handler
 // has finished executing. This is useful to do things like central request logging.
 func (f *Fastglue) After(fm ...FastMiddleware) {
-	for _, h := range fm {
-		f.after = append(f.after, h)
-	}
+	f.after = append(f.after, fm...)
 }
 
 // POST is fastglue's wrapper over fasthttprouter's handler.
@@ -295,26 +289,14 @@ func (r *Request) Decode(v interface{}, tag string) error {
 	return nil
 }
 
-// Helper to make a Map from FastHttp POST Args.
-func makeMapFromArgs(args *fasthttp.Args) map[string][]string {
-	postFormMap := make(map[string][]string)
-	args.VisitAll(func(k, v []byte) {
-		if val, ok := postFormMap[string(k)]; !ok {
-			postFormMap[string(k)] = []string{string(v)}
-		} else {
-			postFormMap[string(k)] = append(val, string(v))
-		}
-	})
-
-	return postFormMap
-}
-
 // SendBytes writes a []byte payload to the HTTP response and also
 // sets a given ContentType header.
 func (r *Request) SendBytes(code int, ctype string, v []byte) error {
 	r.RequestCtx.SetStatusCode(code)
 	r.RequestCtx.SetContentType(ctype)
-	r.RequestCtx.Write(v)
+	if _, err := r.RequestCtx.Write(v); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -324,7 +306,9 @@ func (r *Request) SendBytes(code int, ctype string, v []byte) error {
 func (r *Request) SendString(code int, v string) error {
 	r.RequestCtx.SetStatusCode(code)
 	r.RequestCtx.SetContentType("text/plain")
-	r.RequestCtx.WriteString(v)
+	if _, err := r.RequestCtx.WriteString(v); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -340,12 +324,15 @@ func (r *Request) SendJSON(code int, v interface{}) error {
 		err error
 	)
 
-	if b, err = json.Marshal(v); err == nil {
-		r.RequestCtx.Write(b)
-		return nil
+	if b, err = json.Marshal(v); err != nil {
+		return err
 	}
 
-	return err
+	if _, err := r.RequestCtx.Write(b); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Redirect redirects to the given URI.

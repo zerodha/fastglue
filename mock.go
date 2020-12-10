@@ -2,6 +2,7 @@ package fastglue
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -42,7 +43,7 @@ func NewMockServer() *MockServer {
 			// Check if the URI is registered.
 			if _, ok := m.handles[r.RequestURI]; !ok {
 				w.WriteHeader(http.StatusNotFound)
-				w.Write([]byte("not found"))
+				logerr(w.Write([]byte("not found")))
 				return
 			}
 
@@ -50,7 +51,7 @@ func NewMockServer() *MockServer {
 			out, ok := m.handles[r.RequestURI]
 			if !ok {
 				w.WriteHeader(http.StatusMethodNotAllowed)
-				w.Write([]byte("method not allowed"))
+				logerr(w.Write([]byte("method not allowed")))
 				return
 			}
 
@@ -64,9 +65,8 @@ func NewMockServer() *MockServer {
 				w.Header().Set("Content-Type", out.ContentType)
 			}
 			if len(out.Body) > 0 {
-				w.Write(out.Body)
+				logerr(w.Write(out.Body))
 			}
-			return
 		}),
 	)
 	m.Server = s
@@ -151,4 +151,10 @@ func (mr *MockRequest) AssertBody(body []byte) {
 func (mr *MockRequest) AssertJSON(body []byte) {
 	mr.assert.JSONEq(string(body), string(mr.req.RequestCtx.Response.Body()),
 		"response body doesnt match")
+}
+
+func logerr(n int, err error) {
+	if err != nil {
+		log.Printf("Write failed: %v", err)
+	}
 }

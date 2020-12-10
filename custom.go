@@ -45,8 +45,10 @@ func NewGlue() *Fastglue {
 // avoid repeating read/parse/validate boilerplate inside every single HTTP handler.
 func (r *Request) DecodeFail(v interface{}, tag string) error {
 	if err := r.Decode(v, tag); err != nil {
-		r.SendErrorEnvelope(fasthttp.StatusBadRequest,
-			"Error unmarshalling request: `"+err.Error()+"`", nil, excepBadRequest)
+		if errSend := r.SendErrorEnvelope(fasthttp.StatusBadRequest,
+			"Error unmarshalling request: `"+err.Error()+"`", nil, excepBadRequest); errSend != nil {
+			return errSend
+		}
 
 		return err
 	}
@@ -63,9 +65,15 @@ func (r *Request) SendEnvelope(data interface{}) error {
 		r.RequestCtx.SetStatusCode(fasthttp.StatusOK)
 		r.RequestCtx.SetContentType(JSON)
 
-		r.RequestCtx.Write([]byte(`{"status": "` + statusSuccess + `", "data": `))
-		r.RequestCtx.Write(j)
-		r.RequestCtx.Write([]byte(`}`))
+		if _, err := r.RequestCtx.Write([]byte(`{"status": "` + statusSuccess + `", "data": `)); err != nil {
+			return err
+		}
+		if _, err := r.RequestCtx.Write(j); err != nil {
+			return err
+		}
+		if _, err := r.RequestCtx.Write([]byte(`}`)); err != nil {
+			return err
+		}
 
 		return nil
 	}
@@ -119,7 +127,7 @@ func ReqParams(h FastRequestHandler, fields []string) FastRequestHandler {
 
 		for _, f := range fields {
 			if !args.Has(f) || len(args.Peek(f)) == 0 {
-				r.SendErrorEnvelope(fasthttp.StatusBadRequest, "Missing or empty field `"+f+"`", nil, excepBadRequest)
+				_ = r.SendErrorEnvelope(fasthttp.StatusBadRequest, "Missing or empty field `"+f+"`", nil, excepBadRequest)
 				return nil
 			}
 		}
@@ -143,7 +151,7 @@ func ReqLenParams(h FastRequestHandler, fields map[string]int) FastRequestHandle
 
 		for f, ln := range fields {
 			if !args.Has(f) || len(args.Peek(f)) < ln {
-				r.SendErrorEnvelope(fasthttp.StatusBadRequest,
+				_ = r.SendErrorEnvelope(fasthttp.StatusBadRequest,
 					fmt.Sprintf("`%s` should be minimum %d characters in length.", f, ln), nil, excepBadRequest)
 
 				return nil
@@ -169,7 +177,7 @@ func ReqLenRangeParams(h FastRequestHandler, fields map[string][2]int) FastReque
 
 		for f, ln := range fields {
 			if !args.Has(f) || len(args.Peek(f)) < ln[0] || len(args.Peek(f)) > ln[1] {
-				r.SendErrorEnvelope(fasthttp.StatusBadRequest,
+				_ = r.SendErrorEnvelope(fasthttp.StatusBadRequest,
 					fmt.Sprintf("`%s` should be %d to %d in length", f, ln[0], ln[1]), nil, excepBadRequest)
 
 				return nil
@@ -186,7 +194,7 @@ func NotFoundHandler(r *fasthttp.RequestCtx) {
 		RequestCtx: r,
 	}
 
-	req.SendErrorEnvelope(fasthttp.StatusNotFound, "Route not found", nil, excepGeneral)
+	_ = req.SendErrorEnvelope(fasthttp.StatusNotFound, "Route not found", nil, excepGeneral)
 }
 
 // BadMethodHandler produces an enveloped JSON response for 405 errors.
@@ -195,5 +203,5 @@ func BadMethodHandler(r *fasthttp.RequestCtx) {
 		RequestCtx: r,
 	}
 
-	req.SendErrorEnvelope(fasthttp.StatusMethodNotAllowed, "Request method not allowed", nil, excepGeneral)
+	_ = req.SendErrorEnvelope(fasthttp.StatusMethodNotAllowed, "Request method not allowed", nil, excepGeneral)
 }
