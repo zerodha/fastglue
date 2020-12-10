@@ -1,0 +1,10 @@
+include:
+  - project: 'commons/gitlab-templates'
+    ref: master
+    file: '/golang/.gitlab-ci-template.yml'
+
+test-job:
+  extends: .test-job
+
+lint-job:
+  extends: .lint-job

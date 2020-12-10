@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"math/rand"
 	"net"
 	"net/http"
 	"net/url"
@@ -15,7 +14,6 @@ import (
 	"reflect"
 	"strings"
 	"sync"
-	"syscall"
 	"testing"
 	"time"
 
@@ -77,7 +75,7 @@ func init() {
 		log.Fatal(srv.ListenAndServe(srvAddress, "", nil))
 	})()
 
-	time.Sleep(time.Second * 2)
+	time.Sleep(time.Second * 1)
 }
 
 func GETrequest(url string, t *testing.T) *http.Response {
@@ -172,13 +170,6 @@ func myRedirectHandler(r *Request) error {
 	}, "")
 }
 
-func myRedirectExternalHandler(r *Request) error {
-	return r.Redirect("http://localhost:12345/redirect", fasthttp.StatusFound, map[string]interface{}{
-		"name":  "Redirected" + string(r.RequestCtx.FormValue("name")),
-		"param": "123",
-	}, "")
-}
-
 func myPOSThandler(r *Request) error {
 	var p Person
 	if err := r.DecodeFail(&p, "json"); err != nil {
@@ -233,7 +224,7 @@ func TestSocketConnection(t *testing.T) {
 	go (func() {
 		log.Fatal(NewGlue().ListenAndServe("", sck, nil))
 	})()
-	time.Sleep(time.Second * 2)
+	time.Sleep(time.Second * 1)
 
 	c, err := net.Dial("unix", sck)
 	if err != nil {
@@ -252,6 +243,9 @@ func Test404Response(t *testing.T) {
 	// JSON envelope body.
 	var e Envelope
 	b, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("Couldn't read body: %v: %s", err, b)
+	}
 	err = json.Unmarshal(b, &e)
 	if err != nil {
 		t.Fatalf("Couldn't unmarshal envelope: %v: %s", err, b)
@@ -680,13 +674,13 @@ func TestScanArgs(t *testing.T) {
 	}
 
 	args.Add("badnum", "abc")
-	expected := "Failed to decode `badnum`, got: `abc` (expected int)"
+	expected := "failed to decode `badnum`, got: `abc` (expected int)"
 	_, err = ScanArgs(args, &o, "url")
 	if err == nil {
 		t.Fatal("Expected err, got nil")
 	}
 	if err.Error() != expected {
-		t.Fatalf("Expected `%s`, got: %v", expected, err.Error())
+		t.Fatalf("Expected `%s`, got: `%v`", expected, err.Error())
 	}
 
 	args.Del("badnum")
@@ -694,7 +688,7 @@ func TestScanArgs(t *testing.T) {
 	args.Add("badnumslice", "abc")
 	args.Add("badnumslice", "def")
 	_, err = ScanArgs(args, &o, "url")
-	expected = "Failed to decode `badnumslice`, got: `abc` (expected int)"
+	expected = "failed to decode `badnumslice`, got: `abc` (expected int)"
 	if err.Error() != expected {
 		t.Fatalf("Expected `%s`, got: %v", expected, err.Error())
 	}
@@ -746,32 +740,29 @@ func TestGrace(t *testing.T) {
 	sig := make(chan os.Signal)
 	signal.Notify(sig, os.Interrupt)
 	g := New()
-	go func() {
+	g.GET("/", func(r *Request) error {
+		time.Sleep(1 * time.Second)
 
-		if err := g.ListenServeAndWaitGracefully(":8080", "", &s, ch); err != nil {
+		return r.SendEnvelope(true)
+	})
+	go func() {
+		if err := g.ListenServeAndWaitGracefully(":10201", "", &s, ch); err != nil {
 			t.Log(err.Error())
 		}
 	}()
+	time.Sleep(1 * time.Second)
 	var wg sync.WaitGroup
 	for i := 0; i < 10; i++ {
+		wg.Add(1)
 		go func() {
-			wg.Add(1)
-			_, err := http.Get("http://localhost:8080")
+			resp, err := http.Get("http://localhost:10201/")
+			require.Equal(t, 200, resp.StatusCode)
 			require.NoError(t, err)
 			wg.Done()
 		}()
 	}
-	go func() {
-		s := <-sig
-		fmt.Println(s.String(), " signal received")
-		ch <- struct{}{}
-	}()
-	go func() {
-		rand.Seed(time.Now().UnixNano())
-		n := rand.Intn(10) // n will be between 0 and 10
-		fmt.Printf("Sleeping %d seconds...\n", n)
-		time.Sleep(time.Duration(n+1) * time.Second)
-		sig <- syscall.SIGINT
-	}()
+
+	time.Sleep(50 * time.Millisecond)
+	ch <- struct{}{}
 	wg.Wait()
 }
