@@ -674,13 +674,13 @@ func TestScanArgs(t *testing.T) {
 	}
 
 	args.Add("badnum", "abc")
-	expected := "Failed to decode `badnum`, got: `abc` (expected int)"
+	expected := "failed to decode `badnum`, got: `abc` (expected int)"
 	_, err = ScanArgs(args, &o, "url")
 	if err == nil {
 		t.Fatal("Expected err, got nil")
 	}
 	if err.Error() != expected {
-		t.Fatalf("Expected `%s`, got: %v", expected, err.Error())
+		t.Fatalf("Expected `%s`, got: `%v`", expected, err.Error())
 	}
 
 	args.Del("badnum")
@@ -688,7 +688,7 @@ func TestScanArgs(t *testing.T) {
 	args.Add("badnumslice", "abc")
 	args.Add("badnumslice", "def")
 	_, err = ScanArgs(args, &o, "url")
-	expected = "Failed to decode `badnumslice`, got: `abc` (expected int)"
+	expected = "failed to decode `badnumslice`, got: `abc` (expected int)"
 	if err.Error() != expected {
 		t.Fatalf("Expected `%s`, got: %v", expected, err.Error())
 	}
