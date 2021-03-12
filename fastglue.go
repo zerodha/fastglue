@@ -146,7 +146,7 @@ func (f *Fastglue) Shutdown(s *fasthttp.Server, shutdownComplete chan error) {
 	shutdownComplete <- f.Server.Shutdown()
 }
 
-// hanlder is the "proxy" abstraction that converts a fastglue handler into
+// handler is the "proxy" abstraction that converts a fastglue handler into
 // a fasthttp handler and passes execution in and out.
 func (f *Fastglue) handler(h FastRequestHandler) func(*fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {

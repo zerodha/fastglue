@@ -144,13 +144,13 @@ func (mr *MockRequest) AssertStatus(code int) {
 // AssertBody asserts the response body of the request against the given body.
 func (mr *MockRequest) AssertBody(body []byte) {
 	mr.assert.Equal(body, mr.req.RequestCtx.Response.Body(),
-		"response body doesnt match")
+		"response body doesn't match")
 }
 
 // AssertJSON asserts the JSON response of the body of the request against the given body.
 func (mr *MockRequest) AssertJSON(body []byte) {
 	mr.assert.JSONEq(string(body), string(mr.req.RequestCtx.Response.Body()),
-		"response body doesnt match")
+		"response body doesn't match")
 }
 
 func logerr(n int, err error) {
