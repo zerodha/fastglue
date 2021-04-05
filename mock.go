@@ -48,7 +48,7 @@ func NewMockServer() *MockServer {
 			}
 
 			// Check if the method+URI is registered.
-			out, ok := m.handles[r.RequestURI]
+			out, ok := m.handles[r.Method+r.RequestURI]
 			if !ok {
 				w.WriteHeader(http.StatusMethodNotAllowed)
 				logerr(w.Write([]byte("method not allowed")))
