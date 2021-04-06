@@ -346,6 +346,16 @@ func (r *Request) Redirect(uri string, code int, args map[string]interface{}, an
 	r.RequestCtx.URI().CopyTo(rURI)
 	rURI.Update(uri)
 
+	// This avoids a redirect vulnerability when `uri` is relative and contains double slash.
+	// For example: if the `uri` is `/bing.com//` which is a relative path passed from client side,
+	// `rURI.Update(uri)` doesn't set the hostname hence the updated uri becomes `http:///bing.com/`.
+	// Most browser strips the additional forward slash and redirects to `http://bing.com`.
+	// To avoid is this, we check if the updated hostname is empty and if empty then we set current request
+	// hostname as the redirect hostname. In above example, ``/bing.com//`` will now become `http://request_hostname/bing.com/`.
+	if len(rURI.Host()) == 0 {
+		rURI.SetHostBytes(r.RequestCtx.URI().Host())
+	}
+
 	// Fill query args.
 	for k, v := range args {
 		rURI.QueryArgs().Add(k, fmt.Sprintf("%v", v))
