@@ -32,6 +32,31 @@ func TestMockServer(t *testing.T) {
 	mr.AssertJSON([]byte("{    \"data\": \"ouch\"     }"))
 }
 
+func TestMockServerReset(t *testing.T) {
+	m := NewMockServer()
+
+	t.Run("test1", func(t *testing.T) {
+		m.Handle(fasthttp.MethodGet, "/test", MockResponse{Body: []byte("hello world from test1")})
+
+		req := m.NewFastglueReq()
+		req.RequestCtx.SetUserValue("mock_url", m.URL()+"/test")
+		mr := m.Do(handleMockRequest, req, t)
+		mr.AssertStatus(fasthttp.StatusOK)
+		mr.AssertBody([]byte("hello world from test1"))
+	})
+
+	t.Run("test2", func(t *testing.T) {
+		m.Reset()
+		m.Handle(fasthttp.MethodGet, "/test", MockResponse{Body: []byte("hello world from test2")})
+
+		req := m.NewFastglueReq()
+		req.RequestCtx.SetUserValue("mock_url", m.URL()+"/test")
+		mr := m.Do(handleMockRequest, req, t)
+		mr.AssertStatus(fasthttp.StatusOK)
+		mr.AssertBody([]byte("hello world from test2"))
+	})
+}
+
 // handleMockRequest is a dummy HTTP handler that sends a request
 // to the mock server URL and writes that response.
 func handleMockRequest(r *Request) error {
