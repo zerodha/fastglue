@@ -85,6 +85,11 @@ func (m *MockServer) Handle(method, uri string, r MockResponse) {
 	m.handles[uri] = r
 }
 
+// Reset resets existing registered mock response handlers.
+func (m *MockServer) Reset() {
+	m.handles = make(map[string]MockResponse)
+}
+
 // URL returns the URL of the mock server that can be used as the mock
 // upstream server.
 func (m *MockServer) URL() string {
