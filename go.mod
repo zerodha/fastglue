@@ -1,4 +1,4 @@
-module REDACTED/fastglue
+module github.com/zerodha/fastglue
 
 go 1.14
 

@@ -6,7 +6,7 @@ import (
 
 	"github.com/gorilla/schema"
 	"github.com/valyala/fasthttp"
-	"REDACTED/fastglue"
+	"github.com/zerodha/fastglue"
 )
 
 // App is the global config "context" that'll be injected into every Request.

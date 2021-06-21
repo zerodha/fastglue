@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/valyala/fasthttp"
-	"REDACTED/fastglue"
+	"github.com/zerodha/fastglue"
 )
 
 var (
