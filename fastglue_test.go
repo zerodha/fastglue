@@ -662,6 +662,7 @@ func TestScanArgs(t *testing.T) {
 		OtherTag        string   `form:"otherval"`
 		OmitEmpty       string   `form:"otherval,omitempty"`
 		OtherTags       string   `url:"othertags" json:"othertags"`
+		NaN             float64  `url:"nan" json:"nan"`
 	}
 	var o test
 
@@ -721,6 +722,31 @@ func TestScanArgs(t *testing.T) {
 	expected = "failed to decode `badnumslice`, got: `abc` (expected int)"
 	if err.Error() != expected {
 		t.Fatalf("Expected `%s`, got: %v", expected, err.Error())
+	}
+
+	// Check NaN, Infy, Infinity float scan.
+	args = fasthttp.AcquireArgs()
+	for _, a := range []string{"NaN", "nan", "Inf", "Infinity", "+INF", "-INF"} {
+		args.Set("nan", a)
+		if _, err = ScanArgs(args, &o, "url"); err == nil {
+			t.Fatalf("%s float scan incorrectly passed", a)
+		}
+
+	}
+	for k, v := range map[string]float64{
+		"0":    0.0,
+		"0.0":  0.0,
+		"-0":   0.0,
+		"-1.2": -1.2,
+		"1.2":  1.2,
+		"1":    1.0,
+		"-1":   -1.0,
+	} {
+		args.Set("nan", k)
+		if _, err := ScanArgs(args, &o, "url"); err != nil || v != o.NaN {
+			t.Fatalf("%v float scan incorrectly failed", k)
+		}
+
 	}
 }
 
