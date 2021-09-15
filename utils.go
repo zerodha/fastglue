@@ -2,6 +2,7 @@ package fastglue
 
 import (
 	"fmt"
+	"math"
 	"reflect"
 	"strconv"
 	"strings"
@@ -112,7 +113,7 @@ func setVal(f reflect.Value, val string) (bool, error) {
 		f.SetUint(v)
 	case reflect.Float32, reflect.Float64:
 		v, err := strconv.ParseFloat(val, 0)
-		if err != nil {
+		if err != nil || math.IsNaN(v) || math.IsInf(v, 0) {
 			return false, fmt.Errorf("expected decimal")
 		}
 		f.SetFloat(v)
