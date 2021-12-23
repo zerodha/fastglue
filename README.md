@@ -39,6 +39,6 @@ import "github.com/zerodha/fastglue"
 - [Before-after middleware](examples/before-after)
 - [Decode](examples/decode)
 - [Path params](examples/path)
-- [Serve static file](examples/statiic-file)
+- [Serve static file](examples/static-file)
 - [Singleton](examples/singleton)
 - [Graceful shutdown](examples/graceful)
