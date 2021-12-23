@@ -4,6 +4,6 @@
 - [Before-after middleware](before-after)
 - [Decode](decode)
 - [Path params](path)
-- [Serve static file](statiic-file)
+- [Serve static file](static-file)
 - [Singleton](singleton)
 - [Graceful shutdown](graceful)
