@@ -7,6 +7,7 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"strings"
 
 	fasthttprouter "github.com/fasthttp/router"
 	"github.com/valyala/fasthttp"
@@ -335,16 +336,16 @@ func (r *Request) SendJSON(code int, v interface{}) error {
 	return nil
 }
 
-// Redirect redirects to the given URI.
+// Redirect redirects to the given URL.
 // Accepts optional query args and anchor tags.
 // Test : curl -I -L -X GET "localhost:8000/redirect"
-func (r *Request) Redirect(uri string, code int, args map[string]interface{}, anchor string) error {
+func (r *Request) Redirect(url string, code int, args map[string]interface{}, anchor string) error {
 	var redirectURI string
 
 	// Copy current url before mutating.
 	rURI := &fasthttp.URI{}
 	r.RequestCtx.URI().CopyTo(rURI)
-	rURI.Update(uri)
+	rURI.Update(url)
 
 	// This avoids a redirect vulnerability when `uri` is relative and contains double slash.
 	// For example: if the `uri` is `/bing.com//` which is a relative path passed from client side,
@@ -385,6 +386,35 @@ func (r *Request) Redirect(uri string, code int, args map[string]interface{}, an
 	// Redirect
 	r.RequestCtx.Redirect(redirectURI, code)
 	return nil
+}
+
+// RedirectURI redirects to the given URI. If URI contains hostname, scheme etc
+// then its stripped and only path is used for the redirect.
+// Used for internal app redirect and to prevent open redirect vulnerabilities.
+func (r *Request) RedirectURI(uri string, code int, args map[string]interface{}, anchor string) error {
+	// Parse URI to check if its a valid URI.
+	u := &fasthttp.URI{}
+	err := u.Parse(nil, []byte(uri))
+	if err != nil {
+		return err
+	}
+
+	// Use only the rquest URI from the parsed URL.
+	// This makes sure we only redirect to relative path.
+	rURI := u.RequestURI()
+	hash := u.Hash()
+	if len(hash) > 0 {
+		rURI = append(rURI, '#')
+		rURI = append(rURI, hash...)
+	}
+
+	// If path starts with more than one forward slash then its considerd
+	// as full URL and leads to open redirect vulnerability.
+	// So here we strip out all leading forward slashes and replace it
+	// with one forward slash so its always considered as a path.
+	fURI := "/" + strings.TrimLeft(string(rURI), "/")
+
+	return r.Redirect(fURI, code, args, anchor)
 }
 
 // ParseAuthHeader parses the Authorization header and returns an api_key and access_token
