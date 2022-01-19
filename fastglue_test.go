@@ -604,7 +604,7 @@ func TestRedirectScheme(t *testing.T) {
 	}
 	if tErr, ok := err.(net.Error); !ok {
 		t.Fatalf("Expected timeout error on https redirect but got: %v", err)
-	} else if !tErr.Timeout() {
+	} else if !tErr.Timeout() && !strings.Contains(tErr.Error(), "server gave HTTP response to HTTPS client") {
 		t.Fatalf("Expected timeout error on https redirect but got: %v", err)
 	}
 }

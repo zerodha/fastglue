@@ -401,18 +401,17 @@ func (r *Request) RedirectURI(uri string, code int, args map[string]interface{},
 
 	// Use only the rquest URI from the parsed URL.
 	// This makes sure we only redirect to relative path.
-	rURI := u.RequestURI()
-	hash := u.Hash()
+	rURI := string(u.RequestURI())
+	hash := string(u.Hash())
 	if len(hash) > 0 {
-		rURI = append(rURI, '#')
-		rURI = append(rURI, hash...)
+		rURI = rURI + "#" + hash
 	}
 
 	// If path starts with more than one forward slash then its considerd
 	// as full URL and leads to open redirect vulnerability.
 	// So here we strip out all leading forward slashes and replace it
 	// with one forward slash so its always considered as a path.
-	fURI := "/" + strings.TrimLeft(string(rURI), "/")
+	fURI := "/" + strings.TrimLeft(rURI, "/")
 
 	return r.Redirect(fURI, code, args, anchor)
 }
