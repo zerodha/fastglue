@@ -55,6 +55,7 @@ func init() {
 
 	srv.GET("/get", myGEThandler)
 	srv.GET("/next", myNextRedirectHandler)
+	srv.GET("/next-uri", myNextRedirectURIHandler)
 	srv.GET("/redirect", myRedirectHandler)
 	srv.DELETE("/delete", myGEThandler)
 	srv.POST("/post", myPOSThandler)
@@ -175,6 +176,15 @@ func myNextRedirectHandler(r *Request) error {
 	next := r.RequestCtx.QueryArgs().Peek("next")
 	if len(next) > 0 {
 		return r.Redirect(string(next), fasthttp.StatusFound, nil, "")
+	} else {
+		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, "Invalid value for param `next`", nil, "InputException")
+	}
+}
+
+func myNextRedirectURIHandler(r *Request) error {
+	next := r.RequestCtx.QueryArgs().Peek("next")
+	if len(next) > 0 {
+		return r.RedirectURI(string(next), fasthttp.StatusFound, nil, "")
 	} else {
 		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, "Invalid value for param `next`", nil, "InputException")
 	}
@@ -594,7 +604,7 @@ func TestRedirectScheme(t *testing.T) {
 	}
 	if tErr, ok := err.(net.Error); !ok {
 		t.Fatalf("Expected timeout error on https redirect but got: %v", err)
-	} else if !tErr.Timeout() {
+	} else if !tErr.Timeout() && !strings.Contains(tErr.Error(), "server gave HTTP response to HTTPS client") {
 		t.Fatalf("Expected timeout error on https redirect but got: %v", err)
 	}
 }
@@ -616,6 +626,32 @@ func TestNextRedirectRequest(t *testing.T) {
 	resp = GETrequest(srvRoot+"/next?param=123&next=https%3A%2F%2Fzerodha.com%3Fabc%3D123%23xyz", t)
 	if resp.Request.URL.String() != "https://zerodha.com/?abc=123#xyz" {
 		t.Fatalf("Incorrect redirect. Expected redirect %s and got redirect %s", "https://zerodha.com/?abc=123#xyz", resp.Request.URL.String())
+	}
+}
+
+func TestNextRedirectURIRequest(t *testing.T) {
+	// Test relative url with query args and hash fragment.
+	resp := GETrequest(srvRoot+"/next-uri?param=123&next=%2Ffoo%2Fbar%3Fabc%3D123%2312345", t)
+	if resp.Request.URL.String() != "http://127.0.0.1:10200/foo/bar?abc=123#12345" {
+		t.Fatalf("Incorrect redirect. Expected redirect %s and got redirect %s", "http://127.0.0.1:10200/foo/bar?abc=123#12345", resp.Request.URL.String())
+	}
+
+	// Test relative url with single forward slash.
+	resp = GETrequest(srvRoot+"/next-uri?param=123&next=%2Fexample.com%2F%2F", t)
+	if resp.Request.URL.String() != srvRoot+"/example.com/" {
+		t.Fatalf("Incorrect redirect. Expected redirect %s and got redirect %s", srvRoot+"/example.com/", resp.Request.URL.String())
+	}
+
+	// Test relative url with double forward slash.
+	resp = GETrequest(srvRoot+"/next-uri?param=123&next=%2F%2Fexample.com%2F%2F", t)
+	if resp.Request.URL.String() != srvRoot+"/" {
+		t.Fatalf("Incorrect redirect. Expected redirect %s and got redirect %s", srvRoot+"/", resp.Request.URL.String())
+	}
+
+	// Test absolute redirect url.
+	resp = GETrequest(srvRoot+"/next-uri?param=123&next=https%3A%2F%2Fzerodha.com%3Fabc%3D123%23xyz", t)
+	if resp.Request.URL.String() != srvRoot+"/?abc=123#xyz" {
+		t.Fatalf("Incorrect redirect. Expected redirect %s and got redirect %s", srvRoot+"/?abc=123#xyz", resp.Request.URL.String())
 	}
 }
 
