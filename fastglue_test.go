@@ -680,25 +680,39 @@ func TestAnyHandler(t *testing.T) {
 	}
 }
 
+type customType struct {
+	Foo string
+}
+
+func (t *customType) UnmarshalJSON(b []byte) error {
+	t.Foo = string(b)
+	return nil
+}
+
+var _ json.Unmarshaler = (*customType)(nil)
+
 func TestScanArgs(t *testing.T) {
 	type test struct {
-		Str1            string `url:"str1"`
-		StrBlock        string `url:"-"`
-		StrNoTag        *string
-		Strings         []string `url:"str"`
-		Bytes           []byte   `url:"bytes"`
-		Int1            int      `url:"int1"`
-		Ints            []int    `url:"int"`
-		NonExistentInts []int    `url:"nonint"`
-		Bool1           bool     `url:"bool1"`
-		Bools           []bool   `url:"bool"`
-		NonExistent     []string `url:"non"`
-		BadNum          int      `url:"badnum"`
-		BadNumSlice     []int    `url:"badnumslice"`
-		OtherTag        string   `form:"otherval"`
-		OmitEmpty       string   `form:"otherval,omitempty"`
-		OtherTags       string   `url:"othertags" json:"othertags"`
-		NaN             float64  `url:"nan" json:"nan"`
+		Str1                     string `url:"str1"`
+		StrBlock                 string `url:"-"`
+		StrNoTag                 *string
+		Strings                  []string    `url:"str"`
+		Bytes                    []byte      `url:"bytes"`
+		Int1                     int         `url:"int1"`
+		Ints                     []int       `url:"int"`
+		NonExistentInts          []int       `url:"nonint"`
+		Bool1                    bool        `url:"bool1"`
+		Bools                    []bool      `url:"bool"`
+		NonExistent              []string    `url:"non"`
+		BadNum                   int         `url:"badnum"`
+		BadNumSlice              []int       `url:"badnumslice"`
+		OtherTag                 string      `form:"otherval"`
+		OmitEmpty                string      `form:"otherval,omitempty"`
+		OtherTags                string      `url:"othertags" json:"othertags"`
+		NaN                      float64     `url:"nan" json:"nan"`
+		CustomStruct             customType  `url:"custom"`
+		CustomPointer            *customType `url:"custom_pointer"`
+		CustomPointerNonExistent *customType `url:"custom_pointer_non_existent"`
 	}
 	var o test
 
@@ -716,6 +730,8 @@ func TestScanArgs(t *testing.T) {
 	args.Add("bool", "false")
 	args.Add("bool", "f")
 	args.Add("bool", "t")
+	args.Add("custom", "bar")
+	args.Add("custom_pointer", "bar")
 
 	_, err := ScanArgs(args, &o, "url")
 	if err != nil {
@@ -723,21 +739,24 @@ func TestScanArgs(t *testing.T) {
 	}
 
 	exp := test{
-		Str1:            "string1",
-		Strings:         []string{"str1", "str2", "str3"},
-		Bytes:           []byte("manybytes"),
-		Int1:            123,
-		Ints:            []int{456, 789},
-		NonExistentInts: nil,
-		Bool1:           true,
-		Bools:           []bool{true, false, false, true},
-		BadNum:          0,
-		BadNumSlice:     nil,
+		Str1:                     "string1",
+		Strings:                  []string{"str1", "str2", "str3"},
+		Bytes:                    []byte("manybytes"),
+		Int1:                     123,
+		Ints:                     []int{456, 789},
+		NonExistentInts:          nil,
+		Bool1:                    true,
+		Bools:                    []bool{true, false, false, true},
+		BadNum:                   0,
+		BadNumSlice:              nil,
+		CustomStruct:             customType{Foo: "bar"},
+		CustomPointer:            &customType{Foo: "bar"},
+		CustomPointerNonExistent: nil,
 	}
 	if !reflect.DeepEqual(exp, o) {
 		t.Error("scan structs don't match. expected != scanned")
-		fmt.Printf("%#v", exp)
-		fmt.Printf("%#v", o)
+		fmt.Printf("expected:\n%#v\n", exp)
+		fmt.Printf("got:\n%#v\n", o)
 	}
 
 	args.Add("badnum", "abc")

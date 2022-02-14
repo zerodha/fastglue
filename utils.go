@@ -1,6 +1,7 @@
 package fastglue
 
 import (
+	"encoding/json"
 	"fmt"
 	"math"
 	"reflect"
@@ -125,6 +126,36 @@ func setVal(f reflect.Value, val string) (bool, error) {
 			return false, fmt.Errorf("expected boolean")
 		}
 		f.SetBool(b)
+	case reflect.Struct:
+		typ := f.Type()
+		receiver := reflect.New(typ).Interface()
+
+		if jR, ok := receiver.(json.Unmarshaler); ok {
+			err := jR.UnmarshalJSON([]byte(val))
+			if err != nil {
+				return false, fmt.Errorf("failed to decode `%v`, got: `%s` (%v)", f.Type(), val, err)
+			}
+			f.Set(reflect.ValueOf(receiver).Elem())
+			return true, nil
+		}
+
+		return false, nil
+	case reflect.Ptr:
+		if f.Type().Elem().Kind() == reflect.Struct {
+			typ := f.Type().Elem()
+			receiver := reflect.New(typ).Interface()
+
+			if jR, ok := receiver.(json.Unmarshaler); ok {
+				err := jR.UnmarshalJSON([]byte(val))
+				if err != nil {
+					return false, fmt.Errorf("failed to decode `%v`, got: `%s` (%v)", f.Type(), val, err)
+				}
+				f.Set(reflect.ValueOf(receiver))
+				return true, nil
+			}
+		}
+
+		return false, nil
 	default:
 		return false, nil
 	}
