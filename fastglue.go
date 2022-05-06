@@ -7,6 +7,7 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"net"
 	"strings"
 
 	fasthttprouter "github.com/fasthttp/router"
@@ -68,6 +69,22 @@ func New() *Fastglue {
 	return &Fastglue{
 		Router: fasthttprouter.New(),
 	}
+}
+
+// Serve is wrapper around fasthttp.Serve. It serves incoming connections from the given listener.
+
+// Serve blocks until the given listener returns permanent error.
+func (f *Fastglue) Serve(ln net.Listener, s *fasthttp.Server) error {
+	// No server passed, create a default one.
+	if s == nil {
+		s = &fasthttp.Server{}
+	}
+	f.Server = s
+
+	if s.Handler == nil {
+		s.Handler = f.Handler()
+	}
+	return s.Serve(ln)
 }
 
 // ListenAndServe is a wrapper for fasthttp.ListenAndServe. It takes a TCP address,
