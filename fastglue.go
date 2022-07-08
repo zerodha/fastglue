@@ -241,6 +241,11 @@ func (f *Fastglue) Any(path string, h FastRequestHandler) {
 	f.Router.DELETE(path, f.handler(h))
 }
 
+// NotFound is fastglue's wrapper over fasthttprouter's `router.NotFound` handler.
+func (f *Fastglue) NotFound(h FastRequestHandler) {
+	f.Router.NotFound = f.handler(h)
+}
+
 // ServeStatic serves static files under `rootPath` on `path` urls.
 // The `path` must end with "/{filepath:*}", files are then served from the local
 // path /defined/root/dir/{filepath:*}. For example `path` can be
