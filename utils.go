@@ -18,10 +18,11 @@ import (
 // bool, number types and their slices.
 //
 // eg:
-// type Order struct {
-// 	Tradingsymbol string `url:"tradingsymbol"`
-// 	Tags []string `url:"tag"`
-// }
+//
+//	type Order struct {
+//		Tradingsymbol string `url:"tradingsymbol"`
+//		Tags []string `url:"tag"`
+//	}
 func ScanArgs(args *fasthttp.Args, obj interface{}, fieldTag string) ([]string, error) {
 	ob := reflect.ValueOf(obj)
 	if ob.Kind() == reflect.Ptr {
@@ -153,6 +154,21 @@ func setVal(f reflect.Value, val string) (bool, error) {
 				f.Set(reflect.ValueOf(receiver))
 				return true, nil
 			}
+		} else {
+			// Create a new value of the type that the pointer points to
+			typ := f.Type().Elem()
+			newEl := reflect.New(typ)
+
+			ok, err := setVal(newEl.Elem(), val)
+			if err != nil {
+				return false, err
+			}
+
+			// If the value was successfully set, point the original field to the new element
+			if ok {
+				f.Set(newEl)
+			}
+			return ok, nil
 		}
 
 		return false, nil
