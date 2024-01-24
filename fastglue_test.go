@@ -696,6 +696,9 @@ func TestScanArgs(t *testing.T) {
 		Str1                     string `url:"str1"`
 		StrBlock                 string `url:"-"`
 		StrNoTag                 *string
+		StrPtr1                  *string     `url:"strptr1"`
+		StrPtr2                  *string     `url:"strptr2"`
+		IntPtr                   *int        `url:"intptr"`
 		Strings                  []string    `url:"str"`
 		Bytes                    []byte      `url:"bytes"`
 		Int1                     int         `url:"int1"`
@@ -732,13 +735,21 @@ func TestScanArgs(t *testing.T) {
 	args.Add("bool", "t")
 	args.Add("custom", "bar")
 	args.Add("custom_pointer", "bar")
+	args.Add("strptr1", "strptrval")
+	args.Add("intptr", "12345")
 
 	_, err := ScanArgs(args, &o, "url")
 	if err != nil {
 		t.Fatalf("Got unexpected error: %v", err)
 	}
 
+	var (
+		strPtr1 = "strptrval"
+		intPtr  = 12345
+	)
 	exp := test{
+		StrPtr1:                  &strPtr1,
+		IntPtr:                   &intPtr,
 		Str1:                     "string1",
 		Strings:                  []string{"str1", "str2", "str3"},
 		Bytes:                    []byte("manybytes"),
