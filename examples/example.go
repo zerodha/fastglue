@@ -4,7 +4,6 @@ import (
 	"log"
 	"time"
 
-	"github.com/gorilla/schema"
 	"github.com/valyala/fasthttp"
 	"github.com/zerodha/fastglue"
 )
@@ -22,13 +21,12 @@ type App struct {
 var (
 	TokenExc fastglue.ErrorType = "TokenException"
 	InputExc fastglue.ErrorType = "InputException"
-	decoder  *schema.Decoder
 )
 
 // Person is a JSON data payload we'll accept.
 type Person struct {
 	Name    *string `json:"name" required:"true"`
-	Age     *int    `json:"age" required:"true" schema:"age,required"`
+	Age     *int    `json:"age" required:"true" `
 	Comment string  `json:"comment"`
 	Version string  `json:"version"`
 }
