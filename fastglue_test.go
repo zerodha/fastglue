@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"net"
@@ -22,7 +23,12 @@ import (
 )
 
 var (
-	srv        = NewGlue()
+	srv = NewGlue(Options{
+		CompressionOpt: CompressionOpt{
+			Enabled: true,
+			Types:   []CompressionType{CompressionZstd, CompressionBr, CompressionGzip, CompressionDeflate},
+		},
+	})
 	srvAddress = ":10200"
 	srvRoot    = "http://127.0.0.1:10200"
 	sck        = "/tmp/fastglue-test.sock"
@@ -54,6 +60,7 @@ func init() {
 	srv.Before(getParamMiddleware)
 
 	srv.GET("/get", myGEThandler)
+	srv.GET("/compressed", myCompressedHandler)
 	srv.GET("/next", myNextRedirectHandler)
 	srv.GET("/next-uri", myNextRedirectURIHandler)
 	srv.GET("/redirect", myRedirectHandler)
@@ -160,6 +167,10 @@ func myGEThandler(r *Request) error {
 	}{"name=" + string(r.RequestCtx.FormValue("name"))})
 }
 
+func myCompressedHandler(r *Request) error {
+	return r.SendBytes(200, "text/plain", make([]byte, 1000))
+}
+
 func myAnyHandler(r *Request) error {
 	// Write the incoming method name to the body.
 	return r.SendBytes(http.StatusOK, "text/plain", r.RequestCtx.Method())
@@ -242,7 +253,7 @@ func myPOSTJsonhandler(r *Request) error {
 func TestSocketConnection(t *testing.T) {
 	log.Println("Listening on Test Server", sck)
 	go (func() {
-		log.Fatal(NewGlue().ListenAndServe("", sck, nil))
+		log.Fatal(NewGlue(Options{}).ListenAndServe("", sck, nil))
 	})()
 	time.Sleep(time.Second * 1)
 
@@ -861,7 +872,7 @@ func TestGrace(t *testing.T) {
 
 	sig := make(chan os.Signal)
 	signal.Notify(sig, os.Interrupt)
-	g := New()
+	g := New(Options{})
 	g.GET("/", func(r *Request) error {
 		time.Sleep(1 * time.Second)
 
@@ -887,4 +898,57 @@ func TestGrace(t *testing.T) {
 	time.Sleep(50 * time.Millisecond)
 	ch <- struct{}{}
 	wg.Wait()
+}
+
+func TestCompression(t *testing.T) {
+	// Uncompressed request.
+	r := GETrequest(srvRoot+"/compressed?param=123", t)
+	if r.StatusCode != fasthttp.StatusOK {
+		// The response body should be the method that was sent.
+		t.Fatalf("request failed: %d", r.StatusCode)
+	}
+	if h := r.Header.Get("Content-Encoding"); h != "" {
+		t.Fatalf("content encoding should be empty not: %v", h)
+	}
+
+	// Check the body response size.
+	{
+		b, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Fatalf("Couldn't read response body: %v", err)
+		}
+		if len(b) != 1000 {
+			t.Fatalf("content length %d != expected 1000", len(b))
+		}
+	}
+
+	// Compressed request.
+	c := http.Client{
+		Timeout:   time.Second * 3,
+		Transport: &http.Transport{},
+	}
+
+	f := func(typ string, length int64) {
+		req, _ := http.NewRequest(http.MethodGet, srvRoot+"/compressed?param=123", nil)
+		req.Header.Set("Accept-Encoding", typ)
+
+		resp, err := c.Do(req)
+		if err != nil || resp.StatusCode != fasthttp.StatusOK {
+			// The response body should be the method that was sent.
+			t.Fatalf("request failed: %v: %v", err, resp.StatusCode)
+		}
+
+		// Verify the compression response headers.
+		if resp.Header.Get("Content-Encoding") != typ {
+			t.Fatalf("Expected content encoding %s != %s", typ, resp.Header.Get("Content-Encoding"))
+		}
+		if resp.ContentLength != length {
+			t.Fatalf("content length %d != expected %d", resp.ContentLength, length)
+		}
+	}
+
+	f("gzip", 29)
+	f("deflate", 17)
+	f("zstd", 16)
+	f("br", 11)
 }

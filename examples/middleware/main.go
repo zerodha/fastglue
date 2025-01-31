@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/valyala/fasthttp"
-	"github.com/zerodha/fastglue"
+	"github.com/zerodha/fastglue/v2"
 )
 
 var (
@@ -19,7 +19,7 @@ var (
 func main() {
 	flag.Parse()
 
-	g := fastglue.New()
+	g := fastglue.New(fastglue.Options{})
 	g.GET("/", auth(validateAll(handleGetAll)))
 	g.PUT("/", auth(fastglue.ReqLenParams(validate(handleMiddleware), map[string]int{"a": 5, "b": 5})))
 	g.POST("/", auth(fastglue.ReqParams(validate(handleMiddleware), []string{"a", "b"})))

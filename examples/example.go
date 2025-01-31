@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/valyala/fasthttp"
-	"github.com/zerodha/fastglue"
+	"github.com/zerodha/fastglue/v2"
 )
 
 // App is the global config "context" that'll be injected into every Request.
@@ -77,7 +77,7 @@ func myRedirectHandler(r *fastglue.Request) error {
 }
 
 func main() {
-	f := fastglue.NewGlue()
+	f := fastglue.NewGlue(fastglue.Options{})
 	f.SetContext(&App{version: "v3.0.0"})
 	// f.Before(checkToken)
 
