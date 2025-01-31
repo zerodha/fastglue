@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/valyala/fasthttp"
-	"github.com/zerodha/fastglue"
+	"github.com/zerodha/fastglue/v2"
 )
 
 var (
@@ -29,7 +29,7 @@ func main() {
 		log:     log.New(os.Stdout, "SINGLETON", log.Llongfile),
 	}
 
-	g := fastglue.New()
+	g := fastglue.New(fastglue.Options{})
 	g.SetContext(app)
 	g.GET("/", handleIndex)
 

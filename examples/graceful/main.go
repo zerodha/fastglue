@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/valyala/fasthttp"
-	"github.com/zerodha/fastglue"
+	"github.com/zerodha/fastglue/v2"
 )
 
 var (
@@ -19,7 +19,7 @@ var (
 func main() {
 	flag.Parse()
 
-	g := fastglue.New()
+	g := fastglue.New(fastglue.Options{})
 	g.ServeStatic("/{filepath:*}", ".", true)
 
 	s := &fasthttp.Server{

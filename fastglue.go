@@ -38,6 +38,17 @@ var (
 	authToken = []byte("token")
 )
 
+// CompressionType is the type of otuput compression available in fasthttp
+// for the response body.
+type CompressionType string
+
+const (
+	CompressionZstd    CompressionType = "zstd"
+	CompressionBr      CompressionType = "br"
+	CompressionGzip    CompressionType = "gzip"
+	CompressionDeflate CompressionType = "deflate"
+)
+
 // FastRequestHandler is the fastglue HTTP request handler function
 // that wraps over the fasthttp handler.
 type FastRequestHandler func(*Request) error
@@ -53,21 +64,52 @@ type Request struct {
 	Context    interface{}
 }
 
+// CompressionOpt is the configuration for enabling and controlling compression.
+// Enabling this will automatically compress the response based on the client's
+// Accept-Encoding header by internally invoking fasthttp.CompressHandler()
+// gzip|deflate|br|zstd are the supported compression types.
+type CompressionOpt struct {
+	Enabled bool
+
+	// Type of compression to support (std, gzip, deflate, br). If no type is specified
+	// then fasthttp's default compression types and its internal order of priority are used.
+	//
+	// Important: The first type in the list is the preferred type
+	// irrespective of the ordering of types in the incoming client's Accept-Encoding header.
+	// That is because fasthttp's CompressHandler() internally uses arbitrary
+	// type ordering to compress the response. fastglue thus overrides the
+	// Accept-Encoding header to only have the first type in this list.
+	// For instance, if the list here is [zstd, br], and the incoming header is
+	// [gzip, deflate, br, zstd], fastglue will overwrite the header to [zstd],
+	// forcing fasthttp to compress the response using the preferred type here.
+	Types []CompressionType
+}
+
 // Fastglue is the "glue" wrapper over fasthttp and fasthttprouter.
 type Fastglue struct {
 	Router                *fasthttprouter.Router
 	Server                *fasthttp.Server
-	context               interface{}
 	MatchedRoutePathParam string
-	before                []FastMiddleware
-	after                 []FastMiddleware
+
+	context interface{}
+	before  []FastMiddleware
+	after   []FastMiddleware
+
+	opt Options
+}
+
+type Options struct {
+	CompressionOpt CompressionOpt
 }
 
 // New creates and returns a new instance of Fastglue.
-func New() *Fastglue {
-	return &Fastglue{
+func New(o Options) *Fastglue {
+	f := &Fastglue{
 		Router: fasthttprouter.New(),
+		opt:    o,
 	}
+
+	return f
 }
 
 // ListenAndServe is a wrapper for fasthttp.ListenAndServe. It takes a TCP address,
@@ -150,7 +192,7 @@ func (f *Fastglue) Shutdown(s *fasthttp.Server, shutdownComplete chan error) {
 // handler is the "proxy" abstraction that converts a fastglue handler into
 // a fasthttp handler and passes execution in and out.
 func (f *Fastglue) handler(h FastRequestHandler) func(*fasthttp.RequestCtx) {
-	return func(ctx *fasthttp.RequestCtx) {
+	handler := func(ctx *fasthttp.RequestCtx) {
 		req := &Request{
 			RequestCtx: ctx,
 			Context:    f.context,
@@ -172,7 +214,35 @@ func (f *Fastglue) handler(h FastRequestHandler) func(*fasthttp.RequestCtx) {
 			}
 		}
 
+		// If compression is enabled, override the response header to
+		// the preferred type in the config.
+		if f.opt.CompressionOpt.Enabled {
+			for _, typ := range f.opt.CompressionOpt.Types {
+				t := string(typ)
+				// If the preferred type is in the client's Accept-Encoding header,
+				// overwrite the request header to only have this type, forcing
+				// fasthttp.CompressHandler() to compress the response using it.
+				// This is because fasthttp internally does not respect the order
+				// in the client header and uses arbitrary ordering to compress the response.
+				if ctx.Request.Header.HasAcceptEncoding(t) {
+					ctx.Request.Header.Set("Accept-Encoding", t)
+					break
+				}
+			}
+		}
 	}
+
+	// If compression is enabled, wrap the handler with fasthttp's CompressHandler
+	// which automatically handles the compression logic.
+	if f.opt.CompressionOpt.Enabled {
+		// fasthttp's compression handlers are pretty bad. This particular handler
+		// is the one that supports gzip|br|zstd|deflate.
+		return fasthttp.CompressHandlerBrotliLevel(handler,
+			fasthttp.CompressBrotliDefaultCompression,
+			fasthttp.CompressDefaultCompression)
+	}
+
+	return handler
 }
 
 // Handler returns fastglue's central fasthttp handler that can be registered

@@ -31,8 +31,8 @@ type Envelope struct {
 
 // NewGlue creates and returns a new instance of Fastglue with custom error
 // handlers pre-bound.
-func NewGlue() *Fastglue {
-	f := New()
+func NewGlue(o Options) *Fastglue {
+	f := New(o)
 	f.Router.MethodNotAllowed = BadMethodHandler
 	f.Router.NotFound = NotFoundHandler
 	f.Router.SaveMatchedRoutePath = true

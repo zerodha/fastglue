@@ -23,13 +23,13 @@ write HTTP servers. It enables:
 ## Install
 
 ```bash
-go get -u github.com/zerodha/fastglue
+go get -u github.com/zerodha/fastglue/v2
 ```
 
 ## Usage
 
 ```go
-import "github.com/zerodha/fastglue"
+import "github.com/zerodha/fastglue/v2"
 ```
 
 ## Examples
