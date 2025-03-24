@@ -7,6 +7,7 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"net"
 	"strings"
 
 	fasthttprouter "github.com/fasthttp/router"
@@ -94,7 +95,14 @@ func (f *Fastglue) ListenAndServe(address string, socket string, s *fasthttp.Ser
 		return s.ListenAndServeUNIX(socket, 0666)
 	}
 
-	return s.ListenAndServe(address)
+	// Custom dual-stack listener.
+	// See: https://github.com/valyala/fasthttp/blob/master/server.go#L1619.
+	ln, err := net.Listen("tcp", address)
+	if err != nil {
+		return err
+	}
+
+	return s.Serve(ln)
 }
 
 // ListenServeAndWaitGracefully accepts the same parameters
